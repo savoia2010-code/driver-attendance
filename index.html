@@ -1,0 +1,2265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>ドライバー出退勤管理</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
+    --accent: #f97316; --danger: #ef4444; --success: #22c55e; --info: #3b82f6;
+    --text: #f0f0f0; --text2: #a0a0a0; --text3: #606060;
+    --night: #818cf8; --holiday: #f43f5e; --overtime: #facc15;
+    --radius: 14px; --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--bg); color: var(--text); font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif; min-height: 100vh; overflow-x: hidden; }
+
+  .screen { display: none; min-height: 100vh; padding-bottom: 90px; overflow-x: hidden; }
+  .screen.active { display: block; }
+
+  /* NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface); border-top: 1px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  .nav-btn { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 0; color: var(--text3); background: none; border: none; cursor: pointer; transition: color 0.2s; }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn span { font-family: 'Noto Sans JP', sans-serif; font-size: 9px; }
+
+  /* HEADER */
+  .header { padding: 52px 20px 16px; background: linear-gradient(180deg, #0a0a0a 0%, var(--bg) 100%); position: sticky; top: 0; z-index: 50; }
+  .header-top { display: flex; justify-content: space-between; align-items: center; }
+  .app-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px; color: var(--accent); }
+  .driver-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 12px; color: var(--text2); cursor: pointer; display: flex; align-items: center; gap: 6px; }
+  .driver-badge strong { color: var(--text); }
+
+  /* CLOCK */
+  .clock-display { text-align: center; padding: 24px 20px 16px; }
+  .clock-time { font-family: 'Bebas Neue', sans-serif; font-size: 72px; letter-spacing: 4px; line-height: 1; color: var(--text); }
+  .clock-date { font-size: 13px; color: var(--text2); margin-top: 4px; letter-spacing: 1px; }
+  .clock-dot { display: inline-block; animation: blink 1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* TYPE TOGGLE */
+  .type-toggle { margin: 0 20px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+  .type-toggle label { font-size: 13px; color: var(--text2); }
+  .toggle-opts { display: flex; gap: 8px; margin-left: auto; }
+  .type-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; cursor: pointer; background: none; color: var(--text2); transition: all 0.2s; font-family: 'Noto Sans JP', sans-serif; }
+  .type-chip.active { background: var(--holiday); border-color: var(--holiday); color: #fff; font-weight: 700; }
+
+  /* STATUS BAR */
+  .status-bar { margin: 0 20px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .status-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .status-label { font-size: 12px; color: var(--text2); }
+  .status-val { font-size: 13px; font-weight: 500; }
+  .status-val.set     { color: var(--success); }
+  .status-val.ongoing { color: var(--info); }
+  .status-val.empty   { color: var(--text3); }
+
+  /* Break section inside status */
+  .break-section { padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .break-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .break-entries { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+  .break-entry { display: flex; align-items: center; gap: 6px; }
+  .break-entry-idx  { font-size: 10px; color: var(--text3); width: 34px; flex-shrink: 0; }
+  .break-entry-val  { flex: 1; font-size: 12px; font-weight: 500; color: var(--success); }
+  .break-entry-val.ongoing { color: var(--info); }
+  .break-del-btn { font-size: 10px; color: var(--text3); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
+  .edit-time-btn { font-size: 10px; color: var(--accent); background: none; border: 1px solid rgba(249,115,22,0.4); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
+  .edit-time-btn:active { opacity: 0.7; }
+  .status-row-last { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
+
+  /* PUNCH BUTTONS */
+  .punch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px; }
+  .punch-btn { border: none; border-radius: var(--radius); padding: 20px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: 'Noto Sans JP', sans-serif; transition: transform 0.1s, opacity 0.2s; }
+  .punch-btn:active   { transform: scale(0.96); }
+  .punch-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .punch-btn .btn-icon  { font-size: 28px; }
+  .punch-btn .btn-label { font-size: 16px; font-weight: 700; color: #fff; }
+  .punch-btn .btn-sub   { font-size: 10px; color: rgba(255,255,255,0.6); }
+  .punch-btn.start       { background: linear-gradient(135deg, #16a34a, #22c55e); }
+  .punch-btn.end         { background: linear-gradient(135deg, #b91c1c, #ef4444); }
+  .punch-btn.break-start { background: linear-gradient(135deg, #1d4ed8, #3b82f6); }
+  .punch-btn.break-end   { background: linear-gradient(135deg, #7c3aed, #a78bfa); }
+
+  /* MODAL */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 200; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal-sheet { background: var(--surface); border-radius: 20px 20px 0 0; padding: 24px 20px calc(24px + env(safe-area-inset-bottom)); width: 100%; transform: translateY(30px); transition: transform 0.25s; }
+  .modal-overlay.open .modal-sheet { transform: translateY(0); }
+  .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+  .modal-time-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 32px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; padding: 12px 16px; text-align: center; }
+  .modal-note { margin-top: 12px; }
+  .modal-note input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; padding: 10px 14px; font-family: 'Noto Sans JP', sans-serif; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-btn { flex: 1; padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  .modal-btn.cancel  { background: var(--surface2); color: var(--text2); }
+  .modal-btn.confirm { background: var(--accent); color: #fff; }
+
+  /* RECORDS */
+  .period-selector { display: flex; align-items: center; gap: 10px; padding: 16px 20px 8px; }
+  .period-btn { background: var(--surface); border: 1px solid var(--border); color: var(--text); width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 18px; }
+  .period-label { flex: 1; text-align: center; font-size: 13px; font-weight: 500; }
+
+  .record-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 0 20px 10px; padding: 14px 16px; }
+  .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .record-date { font-size: 15px; font-weight: 700; }
+  .record-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .tag.holiday  { background: rgba(244,63,94,0.2);   color: var(--holiday);  border: 1px solid rgba(244,63,94,0.3); }
+  .tag.night    { background: rgba(129,140,248,0.2); color: var(--night);    border: 1px solid rgba(129,140,248,0.3); }
+  .tag.overtime { background: rgba(250,204,21,0.15); color: var(--overtime); border: 1px solid rgba(250,204,21,0.3); }
+  .record-times { display: flex; gap: 16px; font-size: 12px; margin-bottom: 8px; }
+  .record-time-item .t-label { font-size: 10px; color: var(--text3); }
+  .record-time-item .t-val   { font-weight: 500; color: var(--text); }
+  .record-breaks { margin-bottom: 8px; }
+  .record-breaks-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .break-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .break-chip { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: var(--info); border-radius: 10px; font-size: 11px; padding: 2px 8px; }
+  .record-hours { display: flex; gap: 14px; border-top: 1px solid var(--border); padding-top: 8px; flex-wrap: wrap; }
+  .hour-chip { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .hour-chip .h-num   { font-family: 'Bebas Neue', sans-serif; font-size: 20px; line-height: 1; }
+  .hour-chip .h-label { font-size: 9px; color: var(--text3); }
+  .hour-chip.normal .h-num  { color: var(--text); }
+  .hour-chip.over   .h-num  { color: var(--overtime); }
+  .hour-chip.night-h .h-num { color: var(--night); }
+  .hour-chip.hol    .h-num  { color: var(--holiday); }
+  .hour-chip.drive  .h-num  { color: #34d399; }
+  .summary-cell.drive .sc-val { color: #34d399; }
+  .record-note { font-size: 11px; color: var(--text3); margin-top: 4px; font-style: italic; }
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-state p { font-size: 14px; }
+
+  /* MONTHLY */
+  .monthly-summary { margin: 0 20px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .summary-driver-row { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--text2); display: flex; justify-content: space-between; }
+  .summary-driver-row strong { color: var(--text); }
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); }
+  .summary-cell { background: var(--surface); padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+  .summary-cell .sc-label { font-size: 11px; color: var(--text3); }
+  .summary-cell .sc-val   { font-family: 'Bebas Neue', sans-serif; font-size: 32px; line-height: 1; }
+  .summary-cell .sc-unit  { font-size: 11px; color: var(--text2); }
+  .summary-cell.normal .sc-val { color: var(--text); }
+  .summary-cell.over   .sc-val { color: var(--overtime); }
+  .summary-cell.ngt    .sc-val { color: var(--night); }
+  .summary-cell.hol    .sc-val { color: var(--holiday); }
+
+  .export-btns { display: flex; gap: 10px; padding: 0 20px; margin-bottom: 16px; }
+  .export-btn { flex: 1; padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .export-btn.pdf { background: var(--danger); color: #fff; }
+  .export-btn.csv { background: var(--success); color: #fff; }
+
+  .monthly-detail { margin: 0 20px; }
+  .detail-row { display: flex; padding: 10px 0; border-bottom: 1px solid var(--border); align-items: center; gap: 8px; font-size: 13px; }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-date  { width: 78px; color: var(--text2); flex-shrink: 0; font-size: 12px; }
+  .detail-times { flex: 1; display: flex; gap: 6px; color: var(--text3); font-size: 11px; flex-wrap: wrap; align-items: center; }
+  .detail-hrs   { font-family: 'Bebas Neue', sans-serif; font-size: 18px; color: var(--text); min-width: 38px; text-align: right; }
+
+  /* DRIVERS */
+  .driver-list { padding: 0 20px; }
+  .driver-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; cursor: pointer; transition: border-color 0.2s; }
+  .driver-item.selected { border-color: var(--accent); }
+  .driver-avatar { width: 44px; height: 44px; border-radius: 50%; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-family: 'Bebas Neue', sans-serif; font-size: 20px; color: var(--accent); flex-shrink: 0; }
+  .driver-info { flex: 1; }
+  .driver-name { font-size: 16px; font-weight: 700; }
+  .driver-meta { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .driver-check { color: var(--accent); display: none; }
+  .driver-item.selected .driver-check { display: block; }
+  .add-driver-form { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin: 0 20px 10px; }
+  .add-driver-form input  { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 15px; padding: 12px 14px; font-family: 'Noto Sans JP', sans-serif; margin-bottom: 10px; }
+  .add-driver-form button { width: 100%; padding: 12px; border-radius: var(--radius-sm); background: var(--accent); border: none; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+
+  /* PRINT */
+  @media print {
+    body { background: #fff; color: #000; }
+    .bottom-nav, .no-print { display: none !important; }
+    .screen { display: block !important; padding: 0; }
+    #screen-punch, #screen-records, #screen-drivers { display: none !important; }
+    #screen-monthly { display: block !important; }
+    .monthly-summary { border: 1px solid #ccc; }
+    .summary-cell { background: #f5f5f5; }
+  }
+
+  /* TOAST */
+  .toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--success); color: #fff; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 700; z-index: 999; transition: transform 0.3s; white-space: nowrap; }
+  .toast.show  { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--danger); }
+
+
+
+
+  /* ── REPORT FORM ── */
+  .report-form { padding: 0 16px 16px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; width: 100%; }
+  .rf-section { font-family: 'Bebas Neue', 'Arial Narrow', Arial, sans-serif;
+    font-size: 15px; letter-spacing: 1px; color: var(--accent);
+    padding: 14px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  .rf-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; min-width: 0; }
+  .rf-label { font-size: 12px; color: var(--text2); width: 80px; flex-shrink: 0;
+    padding-top: 10px; }
+  .rf-input { flex: 1; min-width: 0; background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
+    padding: 9px 12px; font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    box-sizing: border-box; width: 100%; }
+  .rf-input:focus { outline: none; border-color: var(--accent); }
+  .rf-num { text-align: center; max-width: 100px; }
+  .rf-textarea { min-height: 70px; resize: vertical; }
+  .rf-grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .rf-num-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .rf-num-group label { font-size: 11px; color: var(--text2); text-align: center; }
+  .rf-num-group input { width: 100%; text-align: center; box-sizing: border-box; }
+  .rf-toggle-group { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; max-width: 100%; }
+  .rf-chip { background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; color: var(--text2); font-size: 12px; padding: 5px 14px;
+    cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all 0.15s; }
+  .rf-chip.active { background: var(--accent); border-color: var(--accent);
+    color: #fff; font-weight: 500; }
+  .rf-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
+  .rf-add-btn { background: var(--accent); border: none; color: #fff; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans JP', sans-serif; }
+  .rf-add-btn:active { opacity: 0.8; }
+
+  .rf-toggle-switch { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
+  .rf-toggle-switch input[type=checkbox] { display:none; }
+  .rf-toggle-track { width:46px; height:26px; background:var(--surface2); border:1px solid var(--border);
+    border-radius:13px; position:relative; transition:background 0.2s; flex-shrink:0; }
+  .rf-toggle-thumb { position:absolute; top:3px; left:3px; width:18px; height:18px;
+    background:#888; border-radius:50%; transition:transform 0.2s, background 0.2s; }
+  .rf-toggle-switch input:checked ~ .rf-toggle-track { background:var(--accent); border-color:var(--accent); }
+  .rf-toggle-switch input:checked ~ .rf-toggle-track .rf-toggle-thumb { transform:translateX(20px); background:#fff; }
+  .rf-toggle-label { font-size:14px; color:var(--text); min-width:80px; }
+  .rf-datetime-badge { font-size:13px; color:var(--accent); font-weight:600;
+    background:var(--surface2); border:1px solid var(--border); border-radius:var(--radius-sm);
+    padding:8px 12px; flex:1; }
+  .rf-count-badge { background: var(--accent); color: #fff; font-weight: 700;
+    font-size: 15px; padding: 6px 16px; border-radius: 20px; min-width: 56px; text-align: center; }
+  .rf-multi-card { background: var(--surface2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px;
+    display: flex; flex-direction: column; gap: 8px; position: relative; min-width: 0; box-sizing: border-box; }
+  .rf-multi-card-header { display: flex; align-items: center; justify-content: space-between;
+    font-size: 12px; color: var(--text3); font-weight: 600; }
+  .rf-del-btn { background: none; border: none; color: var(--text3); font-size: 20px;
+    cursor: pointer; padding: 0 4px; line-height: 1; }
+  .rf-del-btn:active { color: #ef4444; }
+  .rf-fuel-col { display:flex; flex-direction:column; gap:8px; }
+  .rf-fuel-group { display:flex; align-items:center; gap:10px; }
+  .rf-fuel-group label { font-size:12px; color:var(--text2); width:110px; flex-shrink:0; }
+  .rf-fuel-group input { flex:1; text-align:right; }
+    padding: 8px; background: rgba(34,197,94,0.1); border-radius: 8px; }
+  /* LOADING OVERLAY */
+  .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .loading-overlay.show { opacity: 1; pointer-events: all; }
+  .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  .loading-text { font-size: 13px; color: var(--text2); }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* CONFIRM MODAL */
+  .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .confirm-overlay.open { opacity: 1; pointer-events: all; }
+  .confirm-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px 20px 20px; width: 100%; max-width: 320px; transform: scale(0.95); transition: transform 0.2s; }
+  .confirm-overlay.open .confirm-box { transform: scale(1); }
+  .confirm-msg { font-size: 15px; font-weight: 700; text-align: center; margin-bottom: 6px; line-height: 1.5; }
+  .confirm-sub { font-size: 12px; color: var(--text2); text-align: center; margin-bottom: 20px; line-height: 1.5; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btn-cancel { flex: 1; padding: 13px; background: var(--surface2); border: none; border-radius: var(--radius-sm); color: var(--text2); font-size: 14px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  .confirm-btn-ok { flex: 1; padding: 13px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  .confirm-btn-ok.danger { background: var(--danger); }
+  /* RECORD EDIT MODAL */
+  .rec-edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; display: flex; align-items: flex-end; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
+  .rec-edit-overlay.open { opacity: 1; pointer-events: all; }
+  .rec-edit-sheet { background: var(--surface); border-radius: 20px 20px 0 0; width: 100%; transform: translateY(40px); transition: transform 0.25s; max-height: 88vh; overflow-y: auto; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+  .rec-edit-overlay.open .rec-edit-sheet { transform: translateY(0); }
+  .rec-edit-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 20px 14px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .rec-edit-title { font-size: 16px; font-weight: 700; }
+  .rec-edit-close { background: var(--surface2); border: none; color: var(--text2); width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .rec-edit-body { padding: 16px 20px; }
+  .rec-edit-row { margin-bottom: 14px; }
+  .rec-edit-label { font-size: 11px; color: var(--text3); margin-bottom: 5px; }
+  .rec-edit-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 18px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; padding: 10px 14px; }
+  .rec-edit-input.text { font-family: 'Noto Sans JP', sans-serif; font-size: 14px; letter-spacing: 0; }
+  .rec-edit-section { font-size: 11px; color: var(--text2); font-weight: 700; letter-spacing: 1px; margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .rec-edit-break-row { background: var(--surface2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 8px; }
+  .rec-edit-break-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; color: var(--text2); }
+  .rec-edit-break-del { background: none; border: 1px solid rgba(239,68,68,0.4); color: var(--danger); font-size: 11px; padding: 2px 8px; border-radius: 4px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  .rec-edit-break-times { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rec-edit-add-break { width: 100%; padding: 10px; background: none; border: 1px dashed var(--border); border-radius: var(--radius-sm); color: var(--text2); font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; margin-bottom: 4px; }
+  .rec-edit-add-break:active { background: var(--surface2); }
+  .rec-edit-type-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .rec-edit-type-btn { flex: 1; padding: 9px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: none; color: var(--text2); font-size: 13px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all 0.2s; }
+  .rec-edit-type-btn.active { background: var(--holiday); border-color: var(--holiday); color: #fff; font-weight: 700; }
+  .rec-edit-footer { display: flex; gap: 10px; padding: 0 20px 4px; }
+  .rec-edit-save { flex: 1; padding: 14px; background: var(--accent); border: none; border-radius: var(--radius-sm); color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  .rec-edit-cancel { padding: 14px 20px; background: var(--surface2); border: none; border-radius: var(--radius-sm); color: var(--text2); font-size: 15px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: 到着後酒気帯び確認 -->
+<div class="modal-overlay" id="alcAModal" style="z-index:3001;">
+  <div class="modal-sheet" style="max-height:85vh;overflow-y:auto;">
+    <div class="modal-title">🔴 到着後 酒気帯び確認</div>
+    <div style="display:flex;flex-direction:column;gap:12px;padding:4px 0 8px;">
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">確認方法</div>
+        <div style="display:flex;gap:8px;">
+          <button class="rf-chip active" id="alcAModalMethod_検知器有" onclick="alcAModalSet('method','検知器有')">有（検知器）</button>
+          <button class="rf-chip" id="alcAModalMethod_検知器無し" onclick="alcAModalSet('method','検知器無し')">無（目視等）</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">対面外連絡</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="rf-chip" id="alcAModalRemote_" onclick="alcAModalSet('remote','')">対面</button>
+          <button class="rf-chip active" id="alcAModalRemote_チャット" onclick="alcAModalSet('remote','チャット')">チャット</button>
+          <button class="rf-chip" id="alcAModalRemote_電話" onclick="alcAModalSet('remote','電話')">電話</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">酒気有無</div>
+        <div style="display:flex;gap:8px;">
+          <button class="rf-chip active" id="alcAModalResult_無" onclick="alcAModalSet('result','無')">無</button>
+          <button class="rf-chip" id="alcAModalResult_有" onclick="alcAModalSet('result','有')">有</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:6px;">確認者</div>
+        <select class="rf-input rf-select" id="alcAModalChecker" onchange="alcAModalCheckerSelect()" style="width:100%;margin-bottom:6px;">
+          <option value="">── 選択してください ──</option>
+        </select>
+        <div style="display:flex;gap:6px;">
+          <input class="rf-input" type="text" id="alcAModalCheckerNew" placeholder="新しい確認者名" style="flex:1;font-size:12px;padding:6px 10px;">
+          <button class="rf-add-btn" onclick="alcAModalAddChecker()">＋</button>
+        </div>
+      </div>
+      <div id="alcAModalDateRow" style="display:none;background:rgba(34,197,94,0.1);border-radius:8px;padding:8px 12px;">
+        <div style="font-size:11px;color:var(--text3);">確認日時</div>
+        <div style="font-size:15px;font-weight:700;" id="alcAModalDateDisplay">—</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeAlcAModal()">スキップ</button>
+      <button class="modal-btn confirm" onclick="confirmAlcAModal()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="timeModal">
+  <div class="modal-sheet">
+    <div class="modal-title" id="modalTitle">時刻を確認・修正</div>
+    <input type="time" class="modal-time-input" id="modalTimeInput">
+    <div id="modalMileageWrap" style="margin-top:12px;display:none;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">🚗 走行距離（km）<span style="color:#ef4444;margin-left:4px;font-weight:700;">必須</span></div>
+      <input type="number" id="modalMileageInput" placeholder="例：12345" min="0" style="width:100%;background:var(--surface2);border:2px solid var(--accent);border-radius:var(--radius-sm);color:var(--text);font-size:22px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;padding:10px 14px;text-align:center;">
+    </div>
+    <div class="modal-note" id="modalNoteWrap">
+      <input type="text" id="modalNoteInput" placeholder="現在地（任意）例：△△SA" autocomplete="off">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel"  onclick="closeModal()">キャンセル</button>
+      <button class="modal-btn confirm" onclick="confirmPunch()">確定</button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREEN: PUNCH -->
+<div class="screen active" id="screen-punch">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">PUNCH</div>
+      <div class="driver-badge" onclick="goTo('drivers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <strong id="currentDriverName">ドライバー選択</strong>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="clock-display">
+    <div class="clock-time" id="liveTime">00<span class="clock-dot">:</span>00</div>
+    <div class="clock-date" id="liveDate">—</div>
+  </div>
+
+  <div class="type-toggle">
+    <label>勤務区分</label>
+    <div class="toggle-opts">
+      <button class="type-chip active" id="typeNormal"  onclick="setDayType('normal')">通常</button>
+      <button class="type-chip"        id="typeHoliday" onclick="setDayType('holiday')">休日出勤</button>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar"><!-- JS renders --></div>
+
+  <div class="punch-grid">
+    <button class="punch-btn start"       id="btn-start"      onclick="openModal('start')">
+      <span class="btn-icon">🟢</span>
+      <span class="btn-label">始業</span>
+      <span class="btn-sub">出発</span>
+    </button>
+    <button class="punch-btn end"         id="btn-end"        onclick="openModal('end')" disabled>
+      <span class="btn-icon">🔴</span>
+      <span class="btn-label">終業</span>
+      <span class="btn-sub">帰社</span>
+    </button>
+    <button class="punch-btn break-start" id="btn-breakStart" onclick="openModal('breakStart')" disabled>
+      <span class="btn-icon">☕</span>
+      <span class="btn-label">休憩開始</span>
+      <span class="btn-sub">離席</span>
+    </button>
+    <button class="punch-btn break-end"   id="btn-breakEnd"   onclick="openModal('breakEnd')" disabled>
+      <span class="btn-icon">▶</span>
+      <span class="btn-label">休憩終了</span>
+      <span class="btn-sub">再開</span>
+    </button>
+  </div>
+
+
+</div>
+
+<!-- SCREEN: RECORDS -->
+<div class="screen" id="screen-records">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">RECORDS</div>
+      <div class="driver-badge" onclick="goTo('drivers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <strong id="recordsDriverName">—</strong>
+      </div>
+    </div>
+  </div>
+  <div class="period-selector">
+    <button class="period-btn" onclick="changePeriod(-1)">‹</button>
+    <div class="period-label" id="recordsPeriodLabel">—</div>
+    <button class="period-btn" onclick="changePeriod(1)">›</button>
+  </div>
+  <div id="recordsList"></div>
+</div>
+
+<!-- SCREEN: MONTHLY -->
+<div class="screen" id="screen-monthly">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">MONTHLY</div>
+      <div class="driver-badge" onclick="goTo('drivers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <strong id="monthlyDriverName">—</strong>
+      </div>
+    </div>
+  </div>
+  <div class="period-selector">
+    <button class="period-btn no-print" onclick="changeMonthlyPeriod(-1)">‹</button>
+    <div class="period-label" id="monthlyPeriodLabel">—</div>
+    <button class="period-btn no-print" onclick="changeMonthlyPeriod(1)">›</button>
+  </div>
+  <div class="monthly-summary" id="monthlySummaryCard"></div>
+  <div class="export-btns no-print">
+    <button class="export-btn pdf" onclick="exportPDF()">📄 PDF出力</button>
+    <button class="export-btn csv" onclick="exportCSV()">📊 CSV出力</button>
+  </div>
+  <div style="padding:0 20px;margin-bottom:8px;"><div style="font-size:13px;color:var(--text2);padding-bottom:6px;border-bottom:1px solid var(--border);">日別内訳</div></div>
+  <div class="monthly-detail" id="monthlyDetail"></div>
+</div>
+
+<!-- SCREEN: DRIVERS -->
+<div class="screen" id="screen-drivers">
+  <div class="header">
+    <div class="header-top"><div class="app-title">DRIVERS</div></div>
+  </div>
+  <div style="padding:16px 20px 8px;"><div style="font-size:13px;color:var(--text2);">タップしてドライバーを切り替え</div></div>
+  <div class="driver-list" id="driverList"></div>
+  <div class="add-driver-form">
+    <input type="text" id="newDriverName" placeholder="新しいドライバー名を入力" maxlength="10">
+    <button onclick="addDriver()">＋ ドライバーを追加</button>
+  </div>
+  <div style="padding: 8px 20px 20px; text-align: center;">
+    <button onclick="resetAllData()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;">
+      全データをリセット
+    </button>
+  </div>
+</div>
+
+
+
+<!-- SCREEN: REPORT (日報入力) -->
+<div class="screen" id="screen-report">
+  <div class="header">
+    <div class="header-top">
+      <div class="app-title">日報入力</div>
+      <div class="driver-badge" onclick="goTo('drivers')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+        <strong id="reportDriverName">—</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="report-form" id="reportForm">
+
+    <!-- 配送情報 -->
+    <div class="rf-section">配送情報</div>
+    <div class="rf-row">
+      <label class="rf-label">配送地</label>
+      <input class="rf-input" type="text" id="rf-destination" placeholder="例：兵庫・岡山" oninput="reportFieldChange()">
+    </div>
+    <div class="rf-row" style="align-items:center;">
+      <label class="rf-label">訪問件数</label>
+      <div class="rf-count-badge" id="rf-count-display">0 件</div>
+      <input type="hidden" id="rf-count">
+    </div>
+    <div style="margin-bottom:8px;">
+      <button class="rf-add-btn" onclick="addVisit()" style="width:100%;padding:10px;">＋ 訪問先を追加</button>
+    </div>
+
+    <!-- 訪問先リスト -->
+    <div style="margin-bottom:4px;">
+      <div id="rf-visits-list"></div>
+    </div>
+
+    <!-- 積込数量 -->
+    <div class="rf-section">積込数量</div>
+    <div class="rf-grid4">
+      <div class="rf-num-group"><label>組立</label><input class="rf-input rf-num" type="number" id="rf-kumitate" placeholder="0" min="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>バラ</label><input class="rf-input rf-num" type="number" id="rf-bara" placeholder="0" min="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>ワンタッチ</label><input class="rf-input rf-num" type="number" id="rf-onetouch" placeholder="0" min="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>小物</label><input class="rf-input rf-num" type="number" id="rf-kobutsu" placeholder="0" min="0" oninput="reportFieldChange()"></div>
+    </div>
+    <div class="rf-row">
+      <label class="rf-label">その他</label>
+      <input class="rf-input rf-num" type="number" id="rf-other" placeholder="0" min="0" oninput="reportFieldChange()">
+    </div>
+
+    <!-- 酒気帯び確認（運転前） -->
+    <div class="rf-section">🔵 酒気帯び確認（運転前）</div>
+    <div class="rf-row">
+      <label class="rf-label">確認方法</label>
+      <div class="rf-toggle-group">
+        <button class="rf-chip active" id="rfAlcBMethod_検知器有" onclick="setRfChip('alcBMethod','検知器有')">有（検知器）</button>
+        <button class="rf-chip" id="rfAlcBMethod_検知器無し" onclick="setRfChip('alcBMethod','検知器無し')">無</button>
+      </div>
+    </div>
+    <div class="rf-row">
+      <label class="rf-label">対面外連絡</label>
+      <div class="rf-toggle-group">
+        <button class="rf-chip" id="rfAlcBRemote_" onclick="setRfChip('alcBRemote','')">対面</button>
+        <button class="rf-chip active" id="rfAlcBRemote_チャット" onclick="setRfChip('alcBRemote','チャット')">チャット</button>
+        <button class="rf-chip" id="rfAlcBRemote_電話" onclick="setRfChip('alcBRemote','電話')">電話</button>
+      </div>
+    </div>
+    <div class="rf-row">
+      <label class="rf-label">酒気有無</label>
+      <div class="rf-toggle-group">
+        <button class="rf-chip" id="rfAlcBResult_無" onclick="setRfChip('alcBResult','無')">無</button>
+        <button class="rf-chip" id="rfAlcBResult_有" onclick="setRfChip('alcBResult','有')">有</button>
+      </div>
+    </div>
+    <div class="rf-row">
+      <label class="rf-label">確認者</label>
+      <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+        <div style="font-size:11px;color:var(--text3);">確認者を選択すると自動で時間が記録されます</div>
+        <select class="rf-input rf-select" id="rf-alcBChecker" onchange="onCheckerSelect('B')">
+          <option value="">── 選択してください ──</option>
+        </select>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <input class="rf-input" type="text" id="rf-alcBCheckerNew" placeholder="新しい確認者名を追加" style="flex:1;font-size:12px;padding:6px 10px;">
+          <button class="rf-add-btn" onclick="addChecker('B')">＋追加</button>
+        </div>
+      </div>
+    </div>
+    <div class="rf-row" id="rf-alcBDate-row" style="display:none;">
+      <label class="rf-label">確認日時</label>
+      <div class="rf-datetime-badge" id="rf-alcBDate-display">—</div>
+      <input type="hidden" id="rf-alcBDate">
+    </div>
+
+
+    <!-- 給油情報 -->
+    <div class="rf-section">⛽ 給油情報</div>
+    <div style="margin-bottom:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:12px;color:var(--text2);">給油記録</span>
+        <button class="rf-add-btn" onclick="addFuel()">＋ 追加</button>
+      </div>
+      <div id="rf-fuels-list"></div>
+    </div>
+
+    <!-- 出張・収支 -->
+    <div class="rf-section">📋 出張報告書</div>
+    <div class="rf-row" style="align-items:center;">
+      <label class="rf-label">宿泊</label>
+      <label class="rf-toggle-switch">
+        <input type="checkbox" id="rf-lodging-check" onchange="onLodgingChange()">
+        <span class="rf-toggle-track">
+          <span class="rf-toggle-thumb"></span>
+        </span>
+        <span class="rf-toggle-label" id="rf-lodging-label">なし</span>
+      </label>
+    </div>
+    <div class="rf-row">
+      <label class="rf-label">手当（円）</label>
+      <input class="rf-input rf-num" type="number" id="rf-allowance" placeholder="0" min="0" oninput="reportFieldChange()">
+    </div>
+    <div style="margin-bottom:10px;margin-top:6px;">
+      <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">報告事項（訪問先ごと）</div>
+      <div id="rf-reports-list"></div>
+    </div>
+
+    <div style="height:20px;"></div>
+    <div class="rf-save-indicator" id="rfSaveIndicator" style="display:none;">✓ 自動保存しました</div>
+    <div style="height:80px;"></div>
+
+  </div>
+</div>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">読み込み中...</div>
+</div>
+
+<!-- CONFIRM MODAL -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-msg"  id="confirmMsg"></div>
+    <div class="confirm-sub"  id="confirmSub"></div>
+    <div class="confirm-btns">
+      <button class="confirm-btn-cancel" id="confirmCancelBtn">キャンセル</button>
+      <button class="confirm-btn-ok"     id="confirmOkBtn">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- RECORD EDIT MODAL -->
+<div class="rec-edit-overlay" id="recEditOverlay">
+  <div class="rec-edit-sheet">
+    <div class="rec-edit-header">
+      <div class="rec-edit-title" id="recEditTitle">記録を編集</div>
+      <button class="rec-edit-close" onclick="closeRecEdit()">✕</button>
+    </div>
+    <div class="rec-edit-body">
+      <div class="rec-edit-section">勤務区分</div>
+      <div class="rec-edit-type-row">
+        <button class="rec-edit-type-btn" id="recEditTypeNormal"  onclick="setRecEditType('normal')">通常</button>
+        <button class="rec-edit-type-btn" id="recEditTypeHoliday" onclick="setRecEditType('holiday')">休日出勤</button>
+      </div>
+      <div class="rec-edit-section">打刻時刻・走行距離</div>
+      <div class="rec-edit-row">
+        <div class="rec-edit-label">🟢 始業時刻</div>
+        <input type="time" class="rec-edit-input" id="recEditStart">
+      </div>
+      <div class="rec-edit-row">
+        <div class="rec-edit-label">🚗 始業時メーター（km）</div>
+        <input type="number" class="rec-edit-input" id="recEditStartMileage" placeholder="例：12345" min="0">
+      </div>
+      <div class="rec-edit-row">
+        <div class="rec-edit-label">🔴 終業時刻</div>
+        <input type="time" class="rec-edit-input" id="recEditEnd">
+      </div>
+      <div class="rec-edit-row">
+        <div class="rec-edit-label">🚗 終業時メーター（km）</div>
+        <input type="number" class="rec-edit-input" id="recEditEndMileage" placeholder="例：12500" min="0">
+      </div>
+      <div class="rec-edit-section">
+        <span>☕ 休憩</span>
+        <button class="edit-time-btn" onclick="recEditAddBreak()">＋ 追加</button>
+      </div>
+      <div id="recEditBreaks"></div>
+      <div class="rec-edit-section">メモ</div>
+      <div class="rec-edit-row">
+        <input type="text" class="rec-edit-input text" id="recEditNote" placeholder="メモ（任意）">
+      </div>
+    </div>
+    <div class="rec-edit-footer">
+      <button class="rec-edit-cancel" onclick="closeRecEdit()">キャンセル</button>
+      <button class="rec-edit-save"   onclick="saveRecEdit()">保存する</button>
+    </div>
+    <div style="padding: 10px 20px 4px; text-align: center;">
+      <button onclick="deleteRecEdit()" style="background:none;border:none;color:var(--danger);font-size:12px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;">
+        この日の記録を削除
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" id="nav-punch"   onclick="goTo('punch')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span>打刻</span>
+  </button>
+  <button class="nav-btn" id="nav-records" onclick="goTo('records')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
+    <span>記録</span>
+  </button>
+  <button class="nav-btn" id="nav-monthly" onclick="goTo('monthly')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M9 21V9"/></svg>
+    <span>月次集計</span>
+  </button>
+  <button class="nav-btn" id="nav-report" onclick="goTo('report')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12h6M9 16h6M9 8h2"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 3v4h10V3"/></svg>
+    <span>日報</span>
+  </button>
+  <button class="nav-btn" id="nav-drivers" onclick="goTo('drivers')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.85"/></svg>
+    <span>ドライバー</span>
+  </button>
+</nav>
+
+<script>
+// ============================================================
+// STORAGE
+// ============================================================
+const STORAGE_KEY    = 'driver_attendance_v2';
+const DRIVERS_KEY    = 'driver_list_v1';
+const CUR_DRIVER_KEY = 'current_driver_v1';
+const GAS_URL        = 'https://script.google.com/macros/s/AKfycbw-vrzGSdJQ6xi6ObxQ0RxdRtWA29dcwVvNC4p6gLGqZf5Glx6e4rOV7ZEZHzLIv-1dnQ/exec';
+
+// ============================================================
+// STORAGE — localStorage for today's state + PIN, GAS for records
+// ============================================================
+const _mem = {};
+const _store = {
+  getItem(k)    { try { return localStorage.getItem(k); }    catch(e) { return _mem[k] || null; } },
+  setItem(k, v) { try { localStorage.setItem(k, v); }        catch(e) { _mem[k] = v; } },
+  removeItem(k) { try { localStorage.removeItem(k); }        catch(e) { delete _mem[k]; } },
+  clear()       { try { localStorage.clear(); }              catch(e) { Object.keys(_mem).forEach(function(k){ delete _mem[k]; }); } }
+};
+
+// GAS API helpers
+async function gasGet(params) {
+  const url = GAS_URL + '?' + new URLSearchParams(params).toString();
+  const res = await fetch(url);
+  return res.json();
+}
+async function gasPost(data) {
+  const res = await fetch(GAS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain' },
+    body: JSON.stringify(data)
+  });
+  const json = await res.json();
+  if (json && json.error) throw new Error(json.error);
+  return json;
+}
+
+// In-memory cache for records (loaded from GAS)
+let appData         = {};
+let drivers         = [];
+let currentDriverId = _store.getItem(CUR_DRIVER_KEY) || '';
+
+const setCurrentDriver = id => { currentDriverId = id; try { _store.setItem(CUR_DRIVER_KEY, id); } catch(e) {} };
+
+// Load drivers from GAS
+async function loadDriversFromGAS() {
+  try {
+    showLoadingOverlay(true);
+    const res = await gasGet({ action: 'getDrivers' });
+    if (res.success && res.drivers.length > 0) {
+      drivers = res.drivers;
+    } else {
+      drivers = [];
+    }
+  } catch(e) {
+    drivers = [];
+    showToast('通信エラー：ドライバー読み込み失敗', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+  if (!currentDriverId && drivers.length > 0) currentDriverId = drivers[0].id;
+}
+
+// Load records from GAS for current period
+async function loadRecordsFromGAS(from, to) {
+  if (!currentDriverId) return;
+  try {
+    showLoadingOverlay(true);
+    const res = await gasGet({ action: 'getRecords', driverId: currentDriverId, from, to });
+    if (res.success) {
+      if (res.debugSample) {
+        showToast('DEBUG: raw3=' + JSON.stringify(res.debugSample.raw3) + ' type=' + res.debugSample.type3, true);
+      }
+      if (!appData[currentDriverId]) appData[currentDriverId] = {};
+      res.records.forEach(function(r) {
+        // Convert GAS record back to app format
+        const breaks = parseBreakDetail(r.breakDetail);
+        appData[currentDriverId][r.date] = {
+          start: r.start, end: r.end,
+          breaks: r.breaks || [],
+          type: r.type || 'normal', note: r.note || '',
+          startMileage: r.startMileage || '', endMileage: r.endMileage || '',
+          destination: r.destination || '', count: r.count || '',
+          kumitate: r.kumitate || '', bara: r.bara || '',
+          onetouch: r.onetouch || '', kobutsu: r.kobutsu || '', other: r.other || '',
+          lodging: r.lodging || '', allowance: r.allowance || '',
+          visits:      r.visits      || [],
+          fuelEntries: r.fuelEntries || [],
+          alcBChecker: r.alcBChecker || '',
+          alcAChecker: r.alcAChecker || '',
+          report: ''
+        };
+      });
+    }
+  } catch(e) {
+    showToast('通信エラー：記録の読み込み失敗', true);
+  } finally {
+    showLoadingOverlay(false);
+  }
+}
+
+function parseBreakDetail(detail) {
+  if (!detail) return [];
+  return detail.split(' ').filter(Boolean).map(function(s) {
+    const match = s.match(/休憩\d+:(\d+:\d+)-(\d+:\d+|\?)/);
+    if (!match) return null;
+    return { start: match[1], end: match[2] === '?' ? null : match[2] };
+  }).filter(Boolean);
+}
+let currentPeriodOffset  = 0;
+let currentMonthlyOffset = 0;
+
+// ============================================================
+// TIME UTILS
+// ============================================================
+const pad      = n  => String(n).padStart(2, '0');
+const nowHHMM  = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const dateKey  = d  => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const parseHHMM = s => { if (!s) return null; const [h,m] = s.split(':').map(Number); return h*60+m; };
+const minutesToH = m => { if (!m || m <= 0) return '0:00'; const h = Math.floor(m/60); const min = m%60; return h + ':' + String(min).padStart(2,'0'); };
+const DAY_NAMES  = ['日','月','火','水','木','金','土'];
+const getDayOfWeek = ds => new Date(ds).getDay();
+const isWeekend    = ds => { const d = getDayOfWeek(ds); return d===0||d===6; };
+
+// ============================================================
+// CALC  — breaks is [{start:"HH:MM", end:"HH:MM"|null}]
+// ============================================================
+const REGULAR_HOURS = 8 * 60;
+const NIGHT_START   = 22 * 60;
+const NIGHT_END     =  5 * 60;
+
+function calcBreakMins(breaks) {
+  return (breaks||[]).reduce((sum, b) => {
+    if (!b.start || !b.end) return sum;
+    let s = parseHHMM(b.start), e = parseHHMM(b.end);
+    if (e < s) e += 24*60;
+    return sum + (e - s);
+  }, 0);
+}
+
+function countNightMins(s, e) {
+  let n = 0;
+  for (let t = s; t < e; t++) { const tm = t % (24*60); if (tm >= NIGHT_START || tm < NIGHT_END) n++; }
+  return n;
+}
+
+function calcRecord(rec) {
+  const start = parseHHMM(rec.start);
+  const end   = parseHHMM(rec.end);
+  if (start===null || end===null) return null;
+  const endAdj = end < start ? end + 24*60 : end;
+
+  // 休憩を時刻順に整理
+  const breaks = (rec.breaks||[]).filter(b=>b.start&&b.end).map(b=>{
+    let bs=parseHHMM(b.start), be=parseHHMM(b.end);
+    if(bs<start) bs+=1440; if(be<bs) be+=1440;
+    return {s:bs,e:be};
+  }).sort((a,b)=>a.s-b.s);
+
+  // 稼働区間を列挙
+  const segs=[];
+  let cursor=start;
+  for(const br of breaks){ if(br.s>cursor) segs.push({s:cursor,e:br.s}); cursor=br.e; }
+  if(endAdj>cursor) segs.push({s:cursor,e:endAdj});
+
+  // 運行時間（深夜除く）と深夜時間を計算
+  let workMins=0, nightMins=0;
+  for(const seg of segs){
+    const n=countNightMins(seg.s,seg.e);
+    nightMins+=n; workMins+=(seg.e-seg.s)-n;
+  }
+  const breakMins    = calcBreakMins(rec.breaks);
+  const isHoliday    = (rec.type==='holiday' || isWeekend(rec.date||''));
+  const overtime     = isHoliday ? 0 : Math.max(0, workMins - 470); // 休日は残業なし
+  const normalMins   = isHoliday ? 0 : workMins - overtime;          // 休日は通常時間なし
+  const holidayMins  = isHoliday ? workMins : 0;                     // 休日は全て休日出勤
+  const totalDriveMins = workMins + nightMins;                       // 総運行時間（休憩除く全稼働）
+  return { totalMins:workMins, normalMins, overtime, nightMins, breakMins, holidayMins, totalDriveMins };
+}
+
+// ============================================================
+// PERIOD UTILS (締め毎月25日)
+// ============================================================
+function getPeriod(offset) {
+  const now = new Date();
+  let pYear = now.getFullYear(), pMonth = now.getMonth();
+  if (now.getDate() >= 26) pMonth++;
+  pMonth += offset;
+  while (pMonth > 11) { pMonth -= 12; pYear++; }
+  while (pMonth <  0) { pMonth += 12; pYear--; }
+  let sYear = pYear, sMonth = pMonth - 1;
+  if (sMonth < 0) { sMonth = 11; sYear--; }
+  return {
+    start: new Date(sYear, sMonth, 26),
+    end:   new Date(pYear, pMonth, 25),
+    label: `${sYear}年${sMonth+1}月26日〜${pYear}年${pMonth+1}月25日`
+  };
+}
+
+function getDatesInPeriod(p) {
+  const dates = [], cur = new Date(p.start);
+  while (cur <= p.end) { dates.push(dateKey(cur)); cur.setDate(cur.getDate()+1); }
+  return dates;
+}
+
+// ============================================================
+// CLOCK
+// ============================================================
+function updateClock() {
+  const d = new Date();
+  document.getElementById('liveTime').innerHTML = `${pad(d.getHours())}<span class="clock-dot">:</span>${pad(d.getMinutes())}`;
+  document.getElementById('liveDate').textContent = `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日（${DAY_NAMES[d.getDay()]}）`;
+}
+// clock started in init
+
+// ============================================================
+// TODAY STATE
+// breaks: [{start:"HH:MM", end:"HH:MM"|null}]
+// last element with end===null = currently on break
+// ============================================================
+let todayState = {
+  start:null, end:null, breaks:[], type:'normal', note:'',
+  // 日報項目
+  destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+  lodging: false, allowance:'',
+  alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+  alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+  visits: [],       // [{place:'', report:''}]
+  fuelEntries: [],  // [{shop:'', fuel:'', fuelRegular:'', adblue:''}]
+  report:'',
+  // advance/remittance/balance はスプレッドシート側で自動計算
+};
+
+function loadTodayState() {
+  try {
+    const s = JSON.parse(_store.getItem(`today_${currentDriverId}`));
+    if (s) {
+      // migrate old single-break format
+      if (!s.breaks && s.breakStart) s.breaks = [{start: s.breakStart, end: s.breakEnd||null}];
+      todayState = { start:null, end:null, breaks:[], type:'normal', note:'', ...s };
+    } else {
+      todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  };
+    }
+  } catch(e) { todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  }; }
+}
+
+const saveTodayState = () => _store.setItem(`today_${currentDriverId}`, JSON.stringify(todayState));
+const isBreakOpen    = () => { const b = todayState.breaks; return b.length>0 && b[b.length-1].end===null; };
+
+function renderStatusBar() {
+  const breaks = todayState.breaks;
+  const totalBreakMins = calcBreakMins(breaks);
+
+  let html = `<div class="status-row">
+    <span class="status-label">🟢 始業</span>
+    <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+      <span class="status-val ${todayState.start?'set':'empty'}">${todayState.start||'—'}</span>
+      ${todayState.startMileage ? `<span style="font-size:11px;color:var(--info)">${Number(todayState.startMileage).toLocaleString()}km</span>` : ''}
+      ${todayState.start ? `<button class="edit-time-btn" onclick="openEditModal('start')">修正</button>` : ''}
+    </span>
+  </div>`;
+
+  // Break section
+  html += `<div class="break-section">
+    <div class="break-section-header">
+      <span class="status-label">☕ 休憩</span>
+      <span class="status-val ${breaks.length?'set':'empty'}">
+        ${breaks.length ? `${breaks.length}回 計${minutesToH(totalBreakMins)}h` : '—'}
+      </span>
+    </div>`;
+  if (breaks.length > 0) {
+    html += `<div class="break-entries">`;
+    breaks.forEach((b, i) => {
+      const open = b.end === null;
+      html += `<div class="break-entry">
+        <span class="break-entry-idx">休憩${i+1}</span>
+        <span class="break-entry-val ${open?'ongoing':''}" style="display:flex;flex-direction:column;gap:1px;">
+          <span>${b.start}〜${b.end||'進行中…'}</span>
+          ${b.startMileage ? `<span style="font-size:10px;color:var(--info)">${Number(b.startMileage).toLocaleString()}km</span>` : ''}
+        </span>
+        <span style="display:flex;gap:4px;flex-shrink:0;">
+          <button class="edit-time-btn" onclick="openEditBreakModal(${i},'start')">開始</button>
+          ${b.end ? `<button class="edit-time-btn" onclick="openEditBreakModal(${i},'end')">終了</button>` : ''}
+          ${!open ? `<button class="break-del-btn" onclick="deleteBreak(${i})">削除</button>` : ''}
+        </span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="status-row-last">
+    <span class="status-label">🔴 終業</span>
+    <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
+      <span class="status-val ${todayState.end?'set':'empty'}">${todayState.end||'—'}</span>
+      ${todayState.endMileage ? `<span style="font-size:11px;color:var(--info)">${Number(todayState.endMileage).toLocaleString()}km</span>` : ''}
+      ${todayState.end ? `<button class="edit-time-btn" onclick="openEditModal('end')">修正</button>` : ''}
+    </span>
+  </div>`;
+
+  document.getElementById('statusBar').innerHTML = html;
+}
+
+function updatePunchUI() {
+  renderStatusBar();
+  const open = isBreakOpen();
+  document.getElementById('btn-start').disabled      = !!todayState.start;
+  document.getElementById('btn-breakStart').disabled = !todayState.start || open || !!todayState.end;
+  document.getElementById('btn-breakEnd').disabled   = !open;
+  document.getElementById('btn-end').disabled        = !todayState.start || open || !!todayState.end;
+  document.getElementById('typeNormal').classList.toggle('active',  todayState.type !== 'holiday');
+  document.getElementById('typeHoliday').classList.toggle('active', todayState.type === 'holiday');
+}
+
+function deleteBreak(idx) {
+  todayState.breaks.splice(idx, 1);
+  saveTodayState();
+  updatePunchUI();
+  showToast('休憩を削除しました');
+}
+
+function setDayType(type) {
+  todayState.type = type;
+  saveTodayState();
+  updatePunchUI();
+}
+
+// ============================================================
+// MODAL
+// ============================================================
+let pendingPunchType = null;
+
+function openModal(type) {
+  pendingPunchType = type;
+  const labels = { start:'始業時刻', breakStart:'休憩開始時刻', breakEnd:'休憩終了時刻', end:'終業時刻' };
+  document.getElementById('modalTitle').textContent = labels[type] + 'を確認・修正';
+  document.getElementById('modalTimeInput').value    = nowHHMM();
+  document.getElementById('modalMileageInput').value = '';
+  // Show mileage for start, breakStart, end
+  const showMileage = ['start','breakStart','end'].includes(type);
+  document.getElementById('modalMileageWrap').style.display = showMileage ? 'block' : 'none';
+  // GPS現在地を自動取得
+  const noteEl = document.getElementById('modalNoteInput');
+  noteEl.value = '📍 取得中...';
+  noteEl.disabled = true;
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const lat = pos.coords.latitude.toFixed(5);
+        const lng = pos.coords.longitude.toFixed(5);
+        // 逆ジオコーディング（nominatim）
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja`)
+          .then(r => r.json())
+          .then(d => {
+            const addr = d.address || {};
+            const place = addr.road || addr.suburb || addr.city || addr.town || addr.village || `${lat},${lng}`;
+            noteEl.value = place;
+            noteEl.disabled = false;
+          })
+          .catch(() => { noteEl.value = `${lat},${lng}`; noteEl.disabled = false; });
+      },
+      () => { noteEl.value = ''; noteEl.disabled = false; },
+      { timeout: 8000, maximumAge: 30000 }
+    );
+  } else {
+    noteEl.value = '';
+    noteEl.disabled = false;
+  }
+  document.getElementById('timeModal').classList.add('open');
+}
+
+function confirmEdit() {
+  const time = document.getElementById('modalTimeInput').value;
+  if (!time) { showToast('時刻を入力してください', true); return; }
+  if (editTarget.type === 'start') {
+    todayState.start = time;
+  } else if (editTarget.type === 'end') {
+    todayState.end = time;
+  } else if (editTarget.type === 'break') {
+    todayState.breaks[editTarget.breakIdx][editTarget.breakField] = time;
+  }
+  saveTodayState();
+  updatePunchUI();
+  document.getElementById('timeModal').dataset.mode = '';
+  editTarget = null;
+  closeModal();
+  showToast('✓ 時刻を修正しました');
+}
+
+function closeModal() {
+  document.getElementById('timeModal').classList.remove('open');
+  document.getElementById('timeModal').dataset.mode = '';
+  pendingPunchType = null;
+}
+
+// Edit functions for already-set times
+let editTarget = null; // { type: 'start'|'end'|'break', breakIdx, breakField }
+
+function openEditModal(field) {
+  editTarget = { type: field };
+  const labels = { start: '始業時刻', end: '終業時刻' };
+  document.getElementById('modalTitle').textContent = labels[field] + 'を修正';
+  document.getElementById('modalTimeInput').value   = todayState[field] || nowHHMM();
+  document.getElementById('modalNoteInput').value   = '';
+  document.getElementById('timeModal').classList.add('open');
+  // Override confirm button to use edit handler
+  document.getElementById('timeModal').dataset.mode = 'edit';
+}
+
+function openEditBreakModal(idx, field) {
+  editTarget = { type: 'break', breakIdx: idx, breakField: field };
+  const labels = { start: `休憩${idx+1} 開始時刻`, end: `休憩${idx+1} 終了時刻` };
+  document.getElementById('modalTitle').textContent = labels[field] + 'を修正';
+  document.getElementById('modalTimeInput').value   = todayState.breaks[idx][field] || nowHHMM();
+  document.getElementById('modalNoteInput').value   = '';
+  document.getElementById('timeModal').classList.add('open');
+  document.getElementById('timeModal').dataset.mode = 'edit';
+}
+
+function confirmPunch() {
+  const mode = document.getElementById('timeModal').dataset.mode;
+  if (mode === 'edit') { confirmEdit(); return; }
+
+  const time    = document.getElementById('modalTimeInput').value;
+  const note    = document.getElementById('modalNoteInput').value;
+  const mileage = document.getElementById('modalMileageInput').value;
+  if (!time) { showToast('時刻を入力してください', true); return; }
+
+  // 始業・休憩開始・終業は走行距離必須
+  const needsMileage = ['start','breakStart','end'].includes(pendingPunchType);
+  if (needsMileage && !mileage) {
+    showToast('走行距離を入力してください', true);
+    document.getElementById('modalMileageInput').focus();
+    return;
+  }
+
+  if (pendingPunchType === 'start') {
+    todayState.start = time;
+    if (mileage) todayState.startMileage = mileage;
+  } else if (pendingPunchType === 'breakStart') {
+    todayState.breaks.push({ start: time, end: null, startMileage: mileage || '', place: note || '' });
+  } else if (pendingPunchType === 'breakEnd') {
+    const last = todayState.breaks[todayState.breaks.length - 1];
+    if (last) { last.end = time; if (note) last.place = note; }
+  } else if (pendingPunchType === 'end') {
+    const _time = time, _note = note, _mileage = mileage;
+    closeModal();
+    showConfirm('お疲れ様です', 'この時刻で記録してよろしいですか？', () => {
+      todayState.end = _time;
+      if (_mileage) todayState.endMileage = _mileage;
+      if (_note) todayState.note = _note;
+      if (!appData[currentDriverId]) appData[currentDriverId] = {};
+      appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks], savedAt: new Date().toISOString() };
+      const savedRecord = { ...appData[currentDriverId][todayKey()] };
+      todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  };
+      _store.removeItem('today_' + currentDriverId);
+      updatePunchUI();
+      showToast('✓ 終業を記録しました。到着後の酒気確認をしてください');
+      openAlcAModal(savedRecord);
+    });
+    return;
+  }
+  if (note) todayState.note = note;
+  saveTodayState();
+  updatePunchUI();
+  closeModal();
+  const labels = { start:'始業', breakStart:'休憩開始', breakEnd:'休憩終了' };
+  showToast('✓ ' + labels[pendingPunchType] + ' ' + time + ' を記録しました');
+}
+
+// ============================================================
+// 到着後 酒気帯び確認モーダル
+// ============================================================
+let _alcASavedRecord = null;
+let _alcAState = { method:'検知器有', remote:'チャット', result:'無', checker:'', date:'' };
+
+function openAlcAModal(savedRecord) {
+  _alcASavedRecord = savedRecord;
+  _alcAState = { method:'検知器有', remote:'チャット', result:'無', checker:'', date:'' };
+  // チップリセット
+  ['検知器有','検知器無し'].forEach(v => document.getElementById('alcAModalMethod_'+v)?.classList.toggle('active', v==='検知器有'));
+  ['','チャット','電話'].forEach(v => document.getElementById('alcAModalRemote_'+v)?.classList.toggle('active', v==='チャット'));
+  ['無','有'].forEach(v => document.getElementById('alcAModalResult_'+v)?.classList.toggle('active', v==='無'));
+  // 確認者リスト
+  const sel = document.getElementById('alcAModalChecker');
+  sel.innerHTML = '<option value="">── 選択してください ──</option>';
+  (getCheckers()||[]).forEach(c => sel.appendChild(Object.assign(document.createElement('option'),{value:c,textContent:c})));
+  document.getElementById('alcAModalDateRow').style.display = 'none';
+  document.getElementById('alcAModal').classList.add('open');
+}
+
+function closeAlcAModal() {
+  document.getElementById('alcAModal').classList.remove('open');
+  if (_alcASavedRecord) {
+    showToast('✓ お疲れ様でした！記録を保存しました');
+    autoSaveRecord(_alcASavedRecord);
+    _alcASavedRecord = null;
+  }
+}
+
+function alcAModalSet(field, val) {
+  if (field==='method')  { _alcAState.method  = val; ['検知器有','検知器無し'].forEach(v=>document.getElementById('alcAModalMethod_'+v)?.classList.toggle('active',v===val)); }
+  if (field==='remote')  { _alcAState.remote  = val; ['','チャット','電話'].forEach(v=>document.getElementById('alcAModalRemote_'+v)?.classList.toggle('active',v===val)); }
+  if (field==='result')  { _alcAState.result  = val; ['無','有'].forEach(v=>document.getElementById('alcAModalResult_'+v)?.classList.toggle('active',v===val)); }
+}
+
+function alcAModalCheckerSelect() {
+  const v = document.getElementById('alcAModalChecker').value;
+  if (v) {
+    _alcAState.checker = v;
+    _alcAState.date = new Date().toISOString();
+    document.getElementById('alcAModalDateRow').style.display = 'block';
+    document.getElementById('alcAModalDateDisplay').textContent = new Date().toLocaleString('ja-JP');
+  }
+}
+
+function alcAModalAddChecker() {
+  const inp = document.getElementById('alcAModalCheckerNew');
+  const name = inp.value.trim();
+  if (!name) return;
+  addCheckerToList(name);
+  const sel = document.getElementById('alcAModalChecker');
+  sel.appendChild(Object.assign(document.createElement('option'),{value:name,textContent:name}));
+  sel.value = name;
+  alcAModalCheckerSelect();
+  inp.value = '';
+}
+
+function confirmAlcAModal() {
+  if (!_alcAState.checker) { showToast('確認者を選択してください', true); return; }
+  if (_alcASavedRecord) {
+    _alcASavedRecord.alcAMethod  = _alcAState.method;
+    _alcASavedRecord.alcARemote  = _alcAState.remote;
+    _alcASavedRecord.alcAResult  = _alcAState.result;
+    _alcASavedRecord.alcAChecker = _alcAState.checker;
+    _alcASavedRecord.alcADate    = _alcAState.date;
+    // appDataにも反映
+    if (appData[currentDriverId]?.[_alcASavedRecord.date]) {
+      Object.assign(appData[currentDriverId][_alcASavedRecord.date], {
+        alcAMethod:  _alcAState.method,
+        alcARemote:  _alcAState.remote,
+        alcAResult:  _alcAState.result,
+        alcAChecker: _alcAState.checker,
+        alcADate:    _alcAState.date,
+      });
+    }
+  }
+  document.getElementById('alcAModal').classList.remove('open');
+  showToast('✓ お疲れ様でした！記録を保存しました');
+  autoSaveRecord(_alcASavedRecord);
+  _alcASavedRecord = null;
+}
+
+async function autoSaveRecord(savedState) {
+  const state = savedState || appData[currentDriverId]?.[todayKey()] || {};
+  const driverName = getDriverName(currentDriverId);
+  const record = {
+    action: 'saveRecord',
+    driverId: currentDriverId,
+    driverName: driverName,
+    date: todayKey(),
+    start: state.start,
+    end: state.end,
+    breaks: state.breaks || [],
+    type: state.type || 'normal',
+    note: state.note || '',
+    startMileage: state.startMileage || '',
+    endMileage: state.endMileage || '',
+    // 日報フィールド
+    destination:  state.destination  || '',
+    count:        (state.visits||[]).length,
+    kumitate:     state.kumitate     || '',
+    bara:         state.bara         || '',
+    onetouch:     state.onetouch     || '',
+    kobutsu:      state.kobutsu      || '',
+    other:        state.other        || '',
+    lodging:      state.lodging ? 5000 : 0,
+    allowance:    Number(state.allowance) || 0,
+    startPlace:   '金丸',
+    endPlace:     '金丸',
+    alcBDate:     state.alcBDate     || '',
+    alcBMethod:   state.alcBMethod   || '',
+    alcBRemote:   state.alcBRemote   || '',
+    alcBResult:   state.alcBResult   || '',
+    alcBChecker:  state.alcBChecker  || '',
+    alcADate:     state.alcADate     || '',
+    alcAMethod:   state.alcAMethod   || '',
+    alcARemote:   state.alcARemote   || '',
+    alcAResult:   state.alcAResult   || '',
+    alcAChecker:  state.alcAChecker  || '',
+    visits:       state.visits       || [],
+    visitPlace:   (state.visits||[]).map(v=>v.place).filter(Boolean).join('・'),
+    report:       state.report       || '',
+    fuelEntries:  state.fuelEntries  || [],
+    fuelShop:     (state.fuelEntries||[]).map(f=>f.shop).filter(Boolean).join('、'),
+    fuel:         (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuel||0),0)||'',
+    fuelRegular:  (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuelRegular||0),0)||'',
+    adblue:       (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.adblue||0),0)||'',
+    advance:      (state.lodging ? 5000 : 0) + (Number(state.allowance)||0),
+    remittance:   (state.lodging ? 5000 : 0) + (Number(state.allowance)||0),
+    balance:      0
+  };
+  // Also cache locally
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks] };
+  // Reset state immediately so UI unlocks
+  todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  };
+  _store.removeItem('today_' + currentDriverId);
+  updatePunchUI();
+  showToast('✓ お疲れ様でした！記録を保存しました');
+  // Send to GAS in background
+  try {
+    const res = await gasPost(record);
+    if (res && res.success) {
+      showToast(`✓ 保存完了 (${res.sheetName || ''} 行${res.row || '?'})`);
+    } else if (res && res.error) {
+      showToast('⚠ GASエラー: ' + res.error, true);
+    }
+  } catch(e) {
+    showToast('⚠ サーバー保存失敗: ' + (e.message||'通信エラー') + '　ローカルには保存済み', true);
+  }
+}
+
+function resetToday() {
+  showConfirm('打刻をやり直す', '現在の入力内容はすべて消えます。', () => {
+    todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  };
+    saveTodayState();
+    updatePunchUI();
+  });
+}
+
+function saveRecord() {
+  if (!todayState.start || !todayState.end) { showToast('始業と終業の両方が必要です', true); return; }
+  if (isBreakOpen()) { showToast('進行中の休憩があります', true); return; }
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks], savedAt: new Date().toISOString() };
+  saveData(appData);
+  showToast('✓ 記録を保存しました');
+}
+
+// ============================================================
+// RECORDS SCREEN
+// ============================================================
+async function renderRecords() {
+  const period    = getPeriod(currentPeriodOffset);
+  document.getElementById('recordsPeriodLabel').textContent = period.label;
+  document.getElementById('recordsDriverName').textContent  = getDriverName(currentDriverId);
+  const from = dateKey(period.start);
+  const to   = dateKey(period.end);
+  await loadRecordsFromGAS(from, to);
+  const driverData = appData[currentDriverId] || {};
+  const records = getDatesInPeriod(period).map(d => ({ date:d, rec:driverData[d]||null })).filter(x=>x.rec);
+  const list = document.getElementById('recordsList');
+
+  if (!records.length) {
+    list.innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="48" height="48"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg><p>この期間の記録はありません</p></div>`;
+    return;
+  }
+
+  list.innerHTML = records.map(({ date, rec }) => {
+    const calc      = calcRecord(rec);
+    const dow       = DAY_NAMES[getDayOfWeek(date)];
+    const isHol     = rec.type === 'holiday' || isWeekend(date);
+    const [,mo,da]  = date.split('-');
+    const tags      = [];
+    if (isHol)               tags.push('<span class="tag holiday">休出</span>');
+    if (calc?.nightMins > 0) tags.push('<span class="tag night">深夜</span>');
+    if (calc?.overtime  > 0) tags.push('<span class="tag overtime">残業</span>');
+
+    const breaks = rec.breaks || [];
+    const bTotal = calcBreakMins(breaks);
+    const breaksHtml = breaks.length
+      ? `<div class="record-breaks">
+           <div class="record-breaks-label">☕ 休憩 ${breaks.length}回 / 計${minutesToH(bTotal)}h</div>
+           <div class="break-chips">${breaks.map((b,i) => `<span class="break-chip">休憩${i+1}: ${b.start}〜${b.end||'?'}</span>`).join('')}</div>
+         </div>`
+      : '';
+
+    return `<div class="record-card">
+      <div class="record-header">
+        <div class="record-date">${mo}/${da}（${dow}）</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <div class="record-tags">${tags.join('')}</div>
+          <button class="edit-time-btn" onclick="openRecEdit('${date}')">編集</button>
+        </div>
+      </div>
+      <div class="record-times">
+        <div class="record-time-item"><div class="t-label">始業</div><div class="t-val">${rec.start||'—'}</div>${rec.startMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.startMileage).toLocaleString()}km</div>`:''}</div>
+        <div class="record-time-item"><div class="t-label">終業</div><div class="t-val">${rec.end||'—'}</div>${rec.endMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.endMileage).toLocaleString()}km</div>`:''}</div>
+        ${rec.startMileage&&rec.endMileage?`<div class="record-time-item"><div class="t-label">走行距離</div><div class="t-val" style="color:var(--info)">${(Number(rec.endMileage)-Number(rec.startMileage)).toLocaleString()}km</div></div>`:''}
+      </div>
+      ${breaksHtml}
+      ${calc ? `<div class="record-hours">
+        <div class="hour-chip normal"><div class="h-num">${minutesToH(calc.normalMins)}</div><div class="h-label">通常h</div></div>
+        <div class="hour-chip over"><div class="h-num">${minutesToH(calc.overtime)}</div><div class="h-label">残業h</div></div>
+        <div class="hour-chip night-h"><div class="h-num">${minutesToH(calc.nightMins)}</div><div class="h-label">深夜h</div></div>
+        <div class="hour-chip drive"><div class="h-num">${minutesToH(calc.totalDriveMins)}</div><div class="h-label">総運行h</div></div>
+        ${isHol?`<div class="hour-chip hol"><div class="h-num">${minutesToH(calc.totalMins)}</div><div class="h-label">休出h</div></div>`:''}
+      </div>` : ''}
+      ${rec.note ? `<div class="record-note">📝 ${rec.note}</div>` : ''}
+      ${(rec.destination||(rec.visits&&rec.visits.length)) ? `<div class="record-note">🚚 ${rec.destination||''} ${ (rec.visits&&rec.visits.length) ? rec.visits.length+'件' : ''}</div>` : ''}
+      ${(rec.visits&&rec.visits.length) ? `<div class="record-note">📍 ${rec.visits.map(v=>v.place).filter(Boolean).join('・')}</div>` : ''}
+      ${(rec.allowance||rec.lodging) ? `<div class="record-note">💴 手当:${rec.allowance||0}円${rec.lodging ? ' 宿泊:¥5,000' : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function changePeriod(dir) { currentPeriodOffset += dir; renderRecords(); }
+
+// ============================================================
+// MONTHLY SCREEN
+// ============================================================
+async function renderMonthly() {
+  const period     = getPeriod(currentMonthlyOffset);
+  document.getElementById('monthlyPeriodLabel').textContent = period.label;
+  document.getElementById('monthlyDriverName').textContent  = getDriverName(currentDriverId);
+  const from = dateKey(period.start);
+  const to   = dateKey(period.end);
+  await loadRecordsFromGAS(from, to);
+  const driverData = appData[currentDriverId] || {};
+  let totalMins=0, overtime=0, nightMins=0, breakMins=0, holidayMins=0, workDays=0;
+  const details = [];
+
+  getDatesInPeriod(period).forEach(date => {
+    const rec  = driverData[date]; if (!rec)  return;
+    const calc = calcRecord(rec);  if (!calc) return;
+    workDays++;
+    totalMins    += calc.normalMins;
+    overtime     += calc.overtime;
+    nightMins    += calc.nightMins;
+    breakMins    += calc.breakMins;
+    holidayMins  += calc.holidayMins;
+    details.push({ date, rec, calc, isHol });
+  });
+
+  const totalDriveMins = totalMins + overtime + nightMins;
+
+  document.getElementById('monthlySummaryCard').innerHTML = `
+    <div class="summary-driver-row"><span>ドライバー</span><strong>${getDriverName(currentDriverId)}</strong></div>
+    <div class="summary-driver-row"><span>集計期間</span><strong>${period.label}</strong></div>
+    <div class="summary-grid">
+      <div class="summary-cell normal"><div class="sc-label">通常労働時間</div><div class="sc-val">${minutesToH(totalMins)}</div><div class="sc-unit">時間（${workDays}日）</div></div>
+      <div class="summary-cell over">  <div class="sc-label">時間外（残業）</div><div class="sc-val">${minutesToH(overtime)}</div><div class="sc-unit">時間</div></div>
+      <div class="summary-cell ngt">   <div class="sc-label">深夜（22〜5時）</div><div class="sc-val">${minutesToH(nightMins)}</div><div class="sc-unit">時間</div></div>
+      <div class="summary-cell hol">   <div class="sc-label">休日出勤</div><div class="sc-val">${minutesToH(holidayMins)}</div><div class="sc-unit">時間</div></div>
+      <div class="summary-cell drive"> <div class="sc-label">総運行時間</div><div class="sc-val">${minutesToH(totalDriveMins)}</div><div class="sc-unit">時間</div></div>
+    </div>`;
+
+  if (!details.length) {
+    document.getElementById('monthlyDetail').innerHTML = '<div class="empty-state" style="padding:30px"><p>記録がありません</p></div>';
+    return;
+  }
+  document.getElementById('monthlyDetail').innerHTML = details.map(({ date, rec, calc, isHol }) => {
+    const [,mo,da] = date.split('-');
+    const dow = DAY_NAMES[getDayOfWeek(date)];
+    const bc  = (rec.breaks||[]).length;
+    const bm  = calc.breakMins;
+    return `<div class="detail-row">
+      <div class="detail-date">${mo}/${da}（${dow}）${isHol?'<span style="color:var(--holiday);font-size:10px"> 休</span>':''}</div>
+      <div class="detail-times">
+        <span>${rec.start}〜${rec.end}</span>
+        ${bc>0?`<span style="color:var(--info)">☕${bc}回/${minutesToH(bm)}h</span>`:''}
+      </div>
+      <div class="detail-hrs">${minutesToH(calc.totalMins)}<span style="font-size:10px;color:var(--text2)">h</span></div>
+    </div>`;
+  }).join('');
+}
+
+function changeMonthlyPeriod(dir) { currentMonthlyOffset += dir; renderMonthly(); }
+
+// ============================================================
+// EXPORT
+// ============================================================
+function exportPDF() { window.print(); }
+
+function exportCSV() {
+  const period     = getPeriod(currentMonthlyOffset);
+  const driverData = appData[currentDriverId] || {};
+  const driverName = getDriverName(currentDriverId);
+
+  const rows = [
+    ['ドライバー名', driverName], ['集計期間', period.label], [],
+    ['日付','曜日','区分','始業','終業','休憩回数','休憩合計(h)','休憩詳細','実労働(h)','時間外(h)','深夜(h)','休日出勤(h)','メモ']
+  ];
+
+  getDatesInPeriod(period).forEach(date => {
+    const rec  = driverData[date]; if (!rec)  return;
+    const calc = calcRecord(rec);  if (!calc) return;
+    const [,mo,da] = date.split('-');
+    const dow    = DAY_NAMES[getDayOfWeek(date)];
+    const isHol  = rec.type==='holiday' || isWeekend(date);
+    const breaks = rec.breaks || [];
+    const bDetail = breaks.map((b,i) => `休憩${i+1}:${b.start}-${b.end||'?'}`).join(' ');
+    rows.push([`${mo}/${da}`, dow, isHol?'休日出勤':'通常',
+      rec.start||'', rec.end||'', breaks.length, minutesToH(calc.breakMins), bDetail,
+      minutesToH(calc.totalMins), minutesToH(calc.overtime), minutesToH(calc.nightMins),
+      isHol?minutesToH(calc.totalMins):'0.0', rec.note||''
+    ]);
+  });
+
+  const csv  = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], { type:'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `勤怠_${driverName}_${period.label.replace(/[〜年月日]/g,'_')}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+  showToast('✓ CSVをダウンロードしました');
+}
+
+// ============================================================
+// DRIVERS
+// ============================================================
+const getDriverName = id => drivers.find(d => d.id===id)?.name || '—';
+
+function renderDrivers() {
+  document.getElementById('driverList').innerHTML = drivers.map(d => `
+    <div class="driver-item ${d.id===currentDriverId?'selected':''}" onclick="selectDriver('${d.id}')">
+      <div class="driver-avatar">${d.name[0]}</div>
+      <div class="driver-info"><div class="driver-name">${d.name}</div><div class="driver-meta">ID: ${d.id}</div></div>
+      <svg class="driver-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="20" height="20"><path d="M5 13l4 4L19 7"/></svg>
+    </div>`).join('');
+}
+
+function selectDriver(id) {
+  currentDriverId = id; setCurrentDriver(id);
+  appData[id] = {}; // clear cache so fresh load happens
+  loadTodayState(); updatePunchUI(); updateDriverHeaders(); renderDrivers();
+  showToast('✓ ' + getDriverName(id) + ' に切り替えました');
+}
+
+function updateDriverHeaders() {
+  const name = getDriverName(currentDriverId);
+  ['currentDriverName','recordsDriverName','monthlyDriverName','reportDriverName'].forEach(id => { const el=document.getElementById(id); if(el) el.textContent = name; });
+}
+
+async function addDriver() {
+  const name = document.getElementById('newDriverName').value.trim();
+  if (!name) { showToast('名前を入力してください', true); return; }
+  if (drivers.length >= 10) { showToast('最大10名まで登録できます', true); return; }
+  const id = 'd' + Date.now();
+  drivers.push({ id, name });
+  document.getElementById('newDriverName').value = '';
+  renderDrivers();
+  showToast('✓ ' + name + ' を追加しました');
+  try {
+    await gasPost({ action: 'saveDriver', id, name });
+  } catch(e) {
+    showToast('⚠ サーバー保存失敗', true);
+  }
+}
+
+
+// ============================================================
+// RECORD EDIT MODAL
+// ============================================================
+let recEditDate = null;
+let recEditBreaks = [];
+let recEditType = 'normal';
+
+function openRecEdit(date) {
+  const rec = (appData[currentDriverId] || {})[date];
+  if (!rec) return;
+  recEditDate   = date;
+  recEditBreaks = JSON.parse(JSON.stringify(rec.breaks || []));
+  recEditType   = rec.type || 'normal';
+
+  const [,mo,da] = date.split('-');
+  const dow = DAY_NAMES[getDayOfWeek(date)];
+  document.getElementById('recEditTitle').textContent = `${mo}/${da}（${dow}）を編集`;
+  document.getElementById('recEditStart').value        = rec.start        || '';
+  document.getElementById('recEditEnd').value          = rec.end          || '';
+  document.getElementById('recEditStartMileage').value = rec.startMileage || '';
+  document.getElementById('recEditEndMileage').value   = rec.endMileage   || '';
+  document.getElementById('recEditNote').value         = rec.note         || '';
+  setRecEditType(recEditType);
+  renderRecEditBreaks();
+  document.getElementById('recEditOverlay').classList.add('open');
+}
+
+function closeRecEdit() {
+  document.getElementById('recEditOverlay').classList.remove('open');
+  recEditDate = null;
+}
+
+function setRecEditType(type) {
+  recEditType = type;
+  document.getElementById('recEditTypeNormal').classList.toggle('active',  type === 'normal');
+  document.getElementById('recEditTypeHoliday').classList.toggle('active', type === 'holiday');
+}
+
+function renderRecEditBreaks() {
+  document.getElementById('recEditBreaks').innerHTML = recEditBreaks.map((b, i) => `
+    <div class="rec-edit-break-row">
+      <div class="rec-edit-break-header">
+        <span>休憩 ${i + 1}</span>
+        <button class="rec-edit-break-del" onclick="recEditDeleteBreak(${i})">削除</button>
+      </div>
+      <div class="rec-edit-break-times">
+        <div>
+          <div class="rec-edit-label">開始</div>
+          <input type="time" class="rec-edit-input" value="${b.start||''}" oninput="recEditBreaks[${i}].start=this.value">
+        </div>
+        <div>
+          <div class="rec-edit-label">終了</div>
+          <input type="time" class="rec-edit-input" value="${b.end||''}" oninput="recEditBreaks[${i}].end=this.value">
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function recEditAddBreak() {
+  recEditBreaks.push({ start: '', end: '' });
+  renderRecEditBreaks();
+}
+
+function recEditDeleteBreak(idx) {
+  recEditBreaks.splice(idx, 1);
+  renderRecEditBreaks();
+}
+
+function deleteRecEdit() {
+  showConfirm('記録を削除', 'この日の記録を削除しますか？', async () => {
+    if (appData[currentDriverId]) delete appData[currentDriverId][recEditDate];
+    closeRecEdit();
+    renderRecords();
+    showToast('記録を削除しました');
+    try {
+      await gasPost({ action: 'deleteRecord', driverId: currentDriverId, date: recEditDate });
+    } catch(e) {}
+  }, false);
+}
+
+async function saveRecEdit() {
+  const start = document.getElementById('recEditStart').value;
+  const end   = document.getElementById('recEditEnd').value;
+  const note  = document.getElementById('recEditNote').value;
+  if (!start || !end) { showToast('始業・終業は必須です', true); return; }
+
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  const existing = appData[currentDriverId][recEditDate] || {};
+  const startMileage = document.getElementById('recEditStartMileage').value;
+  const endMileage   = document.getElementById('recEditEndMileage').value;
+  const updated = {
+    ...existing,
+    start, end, note,
+    startMileage, endMileage,
+    type:   recEditType,
+    breaks: recEditBreaks.filter(b => b.start),
+    savedAt: new Date().toISOString()
+  };
+  appData[currentDriverId][recEditDate] = updated;
+  closeRecEdit();
+  renderRecords();
+  showToast('✓ 記録を修正しました');
+  try {
+    await gasPost({
+      action: 'saveRecord',
+      driverId: currentDriverId,
+      driverName: getDriverName(currentDriverId),
+      date: recEditDate,
+      start, end,
+      startMileage: updated.startMileage,
+      endMileage: updated.endMileage,
+      breaks: updated.breaks,
+      type: recEditType,
+      note
+    });
+  } catch(e) {
+    showToast('⚠ サーバー保存失敗', true);
+  }
+}
+
+
+// ============================================================
+// CUSTOM CONFIRM MODAL (replaces window.confirm for iPhone)
+// ============================================================
+function showConfirm(msg, sub, onOk, danger = false) {
+  document.getElementById('confirmMsg').textContent  = msg;
+  document.getElementById('confirmSub').textContent  = sub;
+  const okBtn = document.getElementById('confirmOkBtn');
+  okBtn.className = 'confirm-btn-ok' + (danger ? ' danger' : '');
+  const overlay = document.getElementById('confirmOverlay');
+  overlay.classList.add('open');
+  // Clone buttons to remove old listeners
+  const newOk     = okBtn.cloneNode(true);
+  const newCancel = document.getElementById('confirmCancelBtn').cloneNode(true);
+  okBtn.replaceWith(newOk);
+  document.getElementById('confirmCancelBtn').replaceWith(newCancel);
+  function close() { overlay.classList.remove('open'); }
+  document.getElementById('confirmOkBtn').addEventListener('click', () => { close(); onOk(); });
+  document.getElementById('confirmCancelBtn').addEventListener('click', close);
+}
+
+// ============================================================
+// NAVIGATION
+// ============================================================
+function goTo(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`screen-${screen}`).classList.add('active');
+  document.getElementById(`nav-${screen}`)?.classList.add('active');
+  if (screen === 'records') renderRecords();
+  if (screen === 'monthly') renderMonthly();
+  if (screen === 'drivers') renderDrivers();
+  if (screen === 'report')  renderReportForm();
+}
+
+// ============================================================
+// TOAST & INIT
+// ============================================================
+function resetAllData() {
+  showConfirm('全データをリセット', '打刻履歴・ドライバー情報がすべて削除されます。', () => {
+  _store.clear();
+  appData = {};
+  drivers = [{ id: 'd1', name: '山田 太郎' }, { id: 'd2', name: '鈴木 次郎' }];
+  currentDriverId = 'd1';
+  todayState = {
+    start:null, end:null, breaks:[], type:'normal', note:'',
+    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+    lodging:'', allowance:'',
+    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+    visits: [],
+    fuelEntries: [],
+    report:'',
+    // advance/remittance/balance はスプレッドシート側で自動計算
+  };
+  currentPeriodOffset  = 0;
+  currentMonthlyOffset = 0;
+  updatePunchUI();
+  updateDriverHeaders();
+  renderDrivers();
+  goTo('punch');
+  showToast('✓ 全データをリセットしました');
+  }, true);
+}
+
+
+// ============================================================
+// REPORT FORM
+// ============================================================
+const RF_FIELDS = [
+  'destination','kumitate','bara','onetouch','kobutsu','other',
+  'allowance',
+  'alcBDate','alcBMethod','alcBRemote','alcBResult','alcBChecker',
+  'alcADate','alcAMethod','alcARemote','alcAResult','alcAChecker',
+  'report'
+  // lodging(bool), visits, fuelEntries は動的レンダリング/チェック管理
+];
+
+// チップ（トグル）系フィールド定義
+const RF_CHIPS = {
+  alcBMethod:  ['有', '無'],
+  alcBRemote:  ['', 'チャット', '電話'],
+  alcBResult:  ['無', '有'],
+  alcAMethod:  ['有', '無'],
+  alcARemote:  ['', 'チャット', '電話'],
+  alcAResult:  ['無', '有'],
+};
+
+function renderReportForm() {
+  const name = getDriverName(currentDriverId);
+  const el = document.getElementById('reportDriverName');
+  if (el) el.textContent = name || 'ドライバー選択';
+
+  // 宿泊チェックを復元
+  const lodgingCheck = document.getElementById('rf-lodging-check');
+  const lodgingLabel = document.getElementById('rf-lodging-label');
+  if (lodgingCheck) {
+    lodgingCheck.checked = !!todayState.lodging;
+    if (lodgingLabel) lodgingLabel.textContent = todayState.lodging ? 'あり（¥5,000）' : 'なし';
+  }
+
+  // 確認日時バッジを復元
+  ['B','A'].forEach(function(side) {
+    const dt  = todayState['alc' + side + 'Date'];
+    const row = document.getElementById('rf-alc' + side + 'Date-row');
+    const disp= document.getElementById('rf-alc' + side + 'Date-display');
+    const hid = document.getElementById('rf-alc' + side + 'Date');
+    if (dt) {
+      const d = new Date(dt);
+      const pad = n => String(n).padStart(2,'0');
+      if (disp) disp.textContent = d.getFullYear() + '/' + pad(d.getMonth()+1) + '/' + pad(d.getDate())
+                                 + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+      if (row) row.style.display = '';
+      if (hid) hid.value = dt;
+    } else {
+      if (row) row.style.display = 'none';
+    }
+  });
+
+  // 訪問先・給油・報告リストを描画
+  renderVisits();
+  renderFuels();
+  renderReports();
+
+  // 確認者セレクトを初期化
+  const selB = document.getElementById('rf-alcBChecker');
+  const selA = document.getElementById('rf-alcAChecker');
+  if (selB) buildCheckerOptions(selB, todayState.alcBChecker || '');
+  if (selA) buildCheckerOptions(selA, todayState.alcAChecker || '');
+
+  RF_FIELDS.forEach(function(key) {
+    if (key === 'alcBChecker' || key === 'alcAChecker') return;
+    const val = todayState[key] || '';
+    if (RF_CHIPS[key]) {
+      const defaultVal = RF_CHIPS[key][0];
+      const current = val || defaultVal;
+      RF_CHIPS[key].forEach(function(v) {
+        const btnId = 'rf' + key.charAt(0).toUpperCase() + key.slice(1) + '_' + v;
+        const btn = document.getElementById(btnId);
+        if (btn) btn.classList.toggle('active', v === current);
+      });
+    } else {
+      const input = document.getElementById('rf-' + key);
+      if (input) input.value = val;
+    }
+  });
+}
+
+function setRfChip(field, value) {
+  todayState[field] = value;
+  saveTodayState();
+  // update chip UI
+  if (RF_CHIPS[field]) {
+    RF_CHIPS[field].forEach(v => {
+      const btnId = `rf${field.charAt(0).toUpperCase()}${field.slice(1)}_${v}`;
+      const btn = document.getElementById(btnId);
+      if (btn) btn.classList.toggle('active', v === value);
+    });
+  }
+  showRfSaved();
+}
+
+let rfSaveTimer = null;
+function reportFieldChange() {
+  // テキスト・数値フィールドをtodayStateに反映
+  RF_FIELDS.forEach(key => {
+    if (!RF_CHIPS[key] && key !== 'alcBChecker' && key !== 'alcAChecker') {
+      const input = document.getElementById(`rf-${key}`);
+      if (input) todayState[key] = input.value;
+    }
+  });
+  saveTodayState();
+  // デバウンス保存
+  clearTimeout(rfSaveTimer);
+  rfSaveTimer = setTimeout(showRfSaved, 800);
+}
+
+
+// ============================================================
+// 訪問先リスト（複数）
+// ============================================================
+function renderVisits() {
+  const list = document.getElementById('rf-visits-list');
+  if (!list) return;
+  const visits = todayState.visits || [];
+  list.innerHTML = '';
+
+  if (visits.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px;">訪問先がありません。「＋ 追加」で入力</div>';
+  } else {
+    visits.forEach(function(v, i) {
+      const card = document.createElement('div');
+      card.className = 'rf-multi-card';
+      card.innerHTML =
+        '<div style="display:flex;align-items:center;gap:8px;">' +
+          '<span style="font-size:12px;color:var(--text3);font-weight:600;white-space:nowrap;">訪問先 ' + (i+1) + '</span>' +
+          '<input class="rf-input" type="text" placeholder="会社名" value="' + escHtml(v.place) + '" ' +
+            'data-vi="' + i + '" data-vf="place" oninput="handleVisitInput(this)" style="flex:1;">' +
+          '<button class="rf-del-btn" onclick="removeVisit(' + i + ')">×</button>' +
+        '</div>';
+      list.appendChild(card);
+    });
+  }
+
+  // 件数バッジ更新
+  const badge = document.getElementById('rf-count-display');
+  if (badge) badge.textContent = visits.length + ' 件';
+  const hiddenCount = document.getElementById('rf-count');
+  if (hiddenCount) hiddenCount.value = visits.length;
+  renderReports();
+}
+
+function addVisit() {
+  if (!todayState.visits) todayState.visits = [];
+  todayState.visits.push({ place: '', report: '' });
+  saveTodayState();
+  renderVisits();
+}
+
+function removeVisit(i) {
+  if (!todayState.visits) return;
+  todayState.visits.splice(i, 1);
+  saveTodayState();
+  renderVisits();
+}
+
+function handleVisitInput(el) {
+  updateVisit(parseInt(el.dataset.vi), el.dataset.vf, el.value);
+}
+function updateVisit(i, field, val) {
+  if (!todayState.visits || !todayState.visits[i]) return;
+  todayState.visits[i][field] = val;
+  saveTodayState();
+  const badge = document.getElementById('rf-count-display');
+  if (badge) badge.textContent = todayState.visits.length + ' 件';
+  // 訪問先名が変わったら報告欄のラベルも更新
+  if (field === 'place') renderReports();
+}
+
+// ============================================================
+// 報告事項（訪問先ごと）
+// ============================================================
+function renderReports() {
+  const list = document.getElementById('rf-reports-list');
+  if (!list) return;
+  const visits = todayState.visits || [];
+  list.innerHTML = '';
+
+  if (visits.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px;">訪問先を追加すると記入欄が表示されます</div>';
+    return;
+  }
+
+  visits.forEach(function(v, i) {
+    const label = v.place ? v.place : ('訪問先 ' + (i+1));
+    const card = document.createElement('div');
+    card.className = 'rf-multi-card';
+    card.innerHTML =
+      '<div class="rf-multi-card-header"><span>' + escHtml(label) + '</span></div>' +
+      '<textarea class="rf-input rf-textarea" placeholder="報告事項を入力" ' +
+        'data-vi="' + i + '" data-vf="report" oninput="handleVisitInput(this)" ' +
+        'style="min-height:70px;">' + escHtml(v.report||'') + '</textarea>';
+    list.appendChild(card);
+  });
+}
+
+// ============================================================
+// 給油記録（複数）
+// ============================================================
+function renderFuels() {
+  const list = document.getElementById('rf-fuels-list');
+  if (!list) return;
+  const fuels = todayState.fuelEntries || [];
+  list.innerHTML = '';
+
+  if (fuels.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px;">給油記録なし。「＋ 追加」で入力</div>';
+  } else {
+    fuels.forEach(function(f, i) {
+      const card = document.createElement('div');
+      card.className = 'rf-multi-card';
+      card.innerHTML =
+        '<div class="rf-multi-card-header">' +
+          '<span>給油 ' + (i+1) + '回目</span>' +
+          '<button class="rf-del-btn" onclick="removeFuel(' + i + ')">×</button>' +
+        '</div>' +
+        '<input class="rf-input" type="text" placeholder="給油店名（例：三木SA登り）" value="' + escHtml(f.shop) + '" ' +
+          'data-fi="' + i + '" data-ff="shop" oninput="handleFuelInput(this)">' +
+        '<div class="rf-fuel-col">' +
+          '<div class="rf-fuel-group"><label>軽油（ℓ）</label>' +
+            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.fuel||'') + '" ' +
+              'data-fi="' + i + '" data-ff="fuel" oninput="handleFuelInput(this)"></div>' +
+          '<div class="rf-fuel-group"><label>レギュラー（ℓ）</label>' +
+            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.fuelRegular||'') + '" ' +
+              'data-fi="' + i + '" data-ff="fuelRegular" oninput="handleFuelInput(this)"></div>' +
+          '<div class="rf-fuel-group"><label>アドブルー（ℓ）</label>' +
+            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.adblue||'') + '" ' +
+              'data-fi="' + i + '" data-ff="adblue" oninput="handleFuelInput(this)"></div>' +
+        '</div>';
+      list.appendChild(card);
+    });
+  }
+}
+
+function addFuel() {
+  if (!todayState.fuelEntries) todayState.fuelEntries = [];
+  todayState.fuelEntries.push({ shop:'', fuel:'', fuelRegular:'', adblue:'' });
+  saveTodayState();
+  renderFuels();
+}
+
+function removeFuel(i) {
+  if (!todayState.fuelEntries) return;
+  todayState.fuelEntries.splice(i, 1);
+  saveTodayState();
+  renderFuels();
+}
+
+function handleFuelInput(el) {
+  updateFuel(parseInt(el.dataset.fi), el.dataset.ff, el.value);
+}
+function updateFuel(i, field, val) {
+  if (!todayState.fuelEntries || !todayState.fuelEntries[i]) return;
+  todayState.fuelEntries[i][field] = val;
+  saveTodayState();
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ============================================================
+// CHECKER LIST（確認者リスト管理）
+// ============================================================
+const CHECKERS_KEY = 'checker_list_v1';
+const DEFAULT_CHECKERS = ['梅澤'];
+
+function loadCheckers() {
+  try {
+    const raw = _store.getItem(CHECKERS_KEY);
+    const saved = raw ? JSON.parse(raw) : null;
+    if (saved) return saved;
+    // 初回はデフォルトを保存して返す
+    saveCheckers(DEFAULT_CHECKERS);
+    return DEFAULT_CHECKERS.slice();
+  } catch(e) { return DEFAULT_CHECKERS.slice(); }
+}
+
+function saveCheckers(list) {
+  try { _store.setItem(CHECKERS_KEY, JSON.stringify(list)); } catch(e) {}
+}
+
+function buildCheckerOptions(selectEl, currentVal) {
+  const checkers = loadCheckers();
+  // 現在の選択を保持しつつ再構築
+  const prev = currentVal !== undefined ? currentVal : selectEl.value;
+  selectEl.innerHTML = '<option value="">── 選択してください ──</option>';
+  checkers.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    if (name === prev) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+function addChecker(side) {
+  const inputId = 'rf-alc' + side + 'CheckerNew';
+  const inputEl = document.getElementById(inputId);
+  const name = inputEl ? inputEl.value.trim() : '';
+  if (!name) { showToast('確認者名を入力してください', true); return; }
+
+  const checkers = loadCheckers();
+  if (checkers.includes(name)) { showToast('すでに登録されています', true); return; }
+  checkers.push(name);
+  saveCheckers(checkers);
+
+  // 両方のセレクトを更新
+  const selB = document.getElementById('rf-alcBChecker');
+  const selA = document.getElementById('rf-alcAChecker');
+  if (selB) buildCheckerOptions(selB);
+  if (selA) buildCheckerOptions(selA);
+
+  // 追加した名前を自動選択
+  const target = document.getElementById('rf-alc' + side + 'Checker');
+  if (target) { target.value = name; }
+  inputEl.value = '';
+
+  // 選択処理を実行
+  onCheckerSelect(side);
+  showToast('✓ 確認者「' + name + '」を登録しました');
+}
+
+function onCheckerSelect(side) {
+  const checkerKey = 'alc' + side + 'Checker';
+  const dateKey    = 'alc' + side + 'Date';
+  const selectEl   = document.getElementById('rf-alc' + side + 'Checker');
+  const dateEl     = document.getElementById('rf-alc' + side + 'Date');
+
+  const checkerVal = selectEl ? selectEl.value : '';
+  todayState[checkerKey] = checkerVal;
+
+  // 確認者が選択されたら確認日時を現在時刻で自動セット（未入力の場合のみ）
+  if (checkerVal) {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const dt = now.getFullYear() + '-' + pad(now.getMonth()+1) + '-' + pad(now.getDate())
+             + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+
+    todayState[dateKey] = dt;
+
+    // 表示バッジ更新
+    const display = document.getElementById('rf-alc' + side + 'Date-display');
+    const row     = document.getElementById('rf-alc' + side + 'Date-row');
+    const hidden  = document.getElementById('rf-alc' + side + 'Date');
+    if (display) display.textContent = now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate())
+                                     + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes());
+    if (row)    row.style.display = '';
+    if (hidden) hidden.value = dt;
+
+    showToast('✓ ' + (side === 'B' ? '運転前' : '運転後') + ' 確認者：' + checkerVal + '、時刻を自動記録しました');
+  }
+
+  saveTodayState();
+
+  // スプレッドシートへ即時送信
+  if (!checkerVal) return;
+  clearTimeout(rfSaveTimer);
+  rfSaveTimer = setTimeout(async function() {
+    try {
+      await gasPost({
+        action:      'saveRecord',
+        driverId:    currentDriverId,
+        driverName:  getDriverName(currentDriverId),
+        date:        todayKey(),
+        start:       todayState.start        || '',
+        end:         todayState.end          || '',
+        breaks:      todayState.breaks,
+        type:        todayState.type,
+        note:        todayState.note         || '',
+        startMileage: todayState.startMileage || '',
+        endMileage:   todayState.endMileage   || '',
+        destination:   todayState.destination  || '',
+        count:         (todayState.visits||[]).length,
+        kumitate:      todayState.kumitate     || '',
+        bara:          todayState.bara         || '',
+        onetouch:      todayState.onetouch     || '',
+        kobutsu:       todayState.kobutsu      || '',
+        other:         todayState.other        || '',
+        lodging:      todayState.lodging ? 5000 : 0,
+        allowance:    Number(todayState.allowance) || 0,
+        startPlace:    '金丸',
+        endPlace:      '金丸',
+        alcBDate:      todayState.alcBDate     || '',
+        alcBMethod:    todayState.alcBMethod   || '',
+        alcBRemote:    todayState.alcBRemote   || '',
+        alcBResult:    todayState.alcBResult   || '',
+        alcBChecker:   todayState.alcBChecker  || '',
+        alcADate:      todayState.alcADate     || '',
+        alcAMethod:    todayState.alcAMethod   || '',
+        alcARemote:    todayState.alcARemote   || '',
+        alcAResult:    todayState.alcAResult   || '',
+        alcAChecker:   todayState.alcAChecker  || '',
+        visits:        todayState.visits       || [],
+        visitPlace:    (todayState.visits||[]).map(v=>v.place).filter(Boolean).join('・'),
+        report:        todayState.report       || '',
+        fuelEntries:   todayState.fuelEntries  || [],
+        fuelShop:      (todayState.fuelEntries||[]).map(f=>f.shop).filter(Boolean).join('、'),
+        fuel:          (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuel||0),0)||'',
+        fuelRegular:   (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuelRegular||0),0)||'',
+        adblue:        (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.adblue||0),0)||'',
+        advance:       (todayState.lodging ? 5000 : 0) + (Number(todayState.allowance)||0),
+        remittance:    (todayState.lodging ? 5000 : 0) + (Number(todayState.allowance)||0),
+        balance:       0
+      });
+      showRfSaved();
+    } catch(e) {
+      // オフライン時はlocalStorageに保存済みのためスキップ
+    }
+  }, 300);
+}
+
+
+
+
+function onLodgingChange() {
+  const cb = document.getElementById('rf-lodging-check');
+  const label = document.getElementById('rf-lodging-label');
+  todayState.lodging = cb ? cb.checked : false;
+  if (label) label.textContent = todayState.lodging ? 'あり（¥5,000）' : 'なし';
+  saveTodayState();
+  showToast(todayState.lodging ? '✓ 宿泊あり（¥5,000）を記録しました' : '宿泊をなしに変更しました');
+}
+
+function showRfSaved() {
+  const ind = document.getElementById('rfSaveIndicator');
+  if (!ind) return;
+  ind.style.display = 'block';
+  setTimeout(() => { ind.style.display = 'none'; }, 1500);
+}
+
+function showLoadingOverlay(show) {
+  const el = document.getElementById('loadingOverlay');
+  if (el) el.classList.toggle('show', show);
+}
+
+function showToast(msg, isError=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'toast' + (isError?' error':''); t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+async function init() {
+  updateClock();
+  setInterval(updateClock, 1000);
+  document.getElementById('timeModal').addEventListener('click', function(e) { if (e.target.id==='timeModal') closeModal(); });
+  document.getElementById('recEditOverlay').addEventListener('click', function(e) { if (e.target.id==='recEditOverlay') closeRecEdit(); });
+  // Load drivers from GAS
+  await loadDriversFromGAS();
+  if (!currentDriverId && drivers.length > 0) currentDriverId = drivers[0].id;
+  loadTodayState();
+  if (isWeekend(todayKey()) && !todayState.start) { todayState.type='holiday'; saveTodayState(); }
+  updatePunchUI();
+  updateDriverHeaders();
+  renderDrivers();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  try { init(); } catch(e) { console.error('Init error:', e); }
+});
+</script>
+</body>
+</html>
