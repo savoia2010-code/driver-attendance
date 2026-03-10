@@ -513,6 +513,16 @@
 
   <div class="report-form" id="reportForm">
 
+    <!-- 宿泊2日目バナー -->
+    <div id="rf-day2-banner" style="display:none;background:#1e3a5f;border:1px solid #2E75B6;border-radius:8px;padding:12px 14px;margin-bottom:12px;">
+      <div style="color:#BDD7EE;font-weight:bold;font-size:14px;margin-bottom:6px;">🌙 宿泊翌日の入力</div>
+      <div style="color:#90b8d8;font-size:12px;line-height:1.6;">運転前の酒気帯び確認のみ入力してください。<br>配送情報・積込数量・出張報告書は1日目の記録に含まれます。</div>
+      <button onclick="viewDay1Report()" style="margin-top:10px;width:100%;padding:8px;background:#2E75B6;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;">📋 1日目の日報を確認する</button>
+    </div>
+
+    <!-- 配送情報・積込・出張報告書（宿泊2日目は非表示） -->
+    <div id="rf-day1-sections">
+
     <!-- 配送情報 -->
     <div class="rf-section">配送情報</div>
     <div class="rf-row">
@@ -542,6 +552,8 @@
       <div class="rf-num-group"><label>小物</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-kobutsu" placeholder="0" oninput="reportFieldChange()"></div>
       <div class="rf-num-group"><label>その他</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-other" placeholder="0" oninput="reportFieldChange()"></div>
     </div>
+
+    </div><!-- /#rf-day1-sections -->
 
     <!-- 酒気帯び確認（運転前） -->
     <div class="rf-section" id="rf-alcB-section">🔵 酒気帯び確認（運転前）</div>
@@ -1428,6 +1440,7 @@ function confirmAlcAModal() {
     showToast('✓ お疲れ様でした！記録を保存しました');
     autoSaveRecord(_alcASavedRecord);
     _alcASavedRecord = null;
+    setReportDay2Mode(false); // 2日目モード解除
   }
 }
 
@@ -1440,13 +1453,38 @@ function openAlcBForNewDay() {
   syncToGAS(todayState);
   updatePunchUI();
 
-  // 日報タブに遷移して酒気帯び(前)セクションにスクロール
+  // 日報タブに遷移・2日目モード表示
   goTo('report');
+  setReportDay2Mode(true);
   setTimeout(function(){
     const alcBSection = document.getElementById('rf-alcB-section');
     if (alcBSection) alcBSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     showToast('📋 翌日の運転前酒気帯び確認を入力してください');
   }, 300);
+}
+
+// 日報タブの2日目モード切替
+function setReportDay2Mode(isDay2) {
+  const banner   = document.getElementById('rf-day2-banner');
+  const day1Secs = document.getElementById('rf-day1-sections');
+  if (banner)   banner.style.display   = isDay2 ? 'block' : 'none';
+  if (day1Secs) day1Secs.style.display = isDay2 ? 'none'  : 'block';
+}
+
+// 1日目の日報を確認（_lodgingDay1Dateのレコードを編集モーダルで表示）
+function viewDay1Report() {
+  if (!_lodgingDay1Date) { showToast('1日目の記録が見つかりません', true); return; }
+  const rec = appData[currentDriverId]?.[_lodgingDay1Date];
+  if (rec) {
+    openRecEdit(_lodgingDay1Date, rec);
+  } else {
+    showToast('1日目の記録を読み込み中...', false);
+    loadRecords(function(){
+      const rec2 = appData[currentDriverId]?.[_lodgingDay1Date];
+      if (rec2) openRecEdit(_lodgingDay1Date, rec2);
+      else showToast('1日目の記録が見つかりません', true);
+    });
+  }
 }
 
 // 途中保存（リセットしない）- 打刻・フィールド変更のたびに呼ばれる
@@ -1974,6 +2012,10 @@ function goTo(screen) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   document.getElementById(`screen-${screen}`).classList.add('active');
   document.getElementById(`nav-${screen}`)?.classList.add('active');
+  // 日報タブ以外に移動したら2日目モードは維持（日報タブへ戻ったとき再表示）
+  if (screen === 'report' && _waitingLodgingDay2 === false && todayState.end) {
+    setReportDay2Mode(false);
+  }
   if (screen === 'records') renderRecords();
   if (screen === 'monthly') renderMonthly();
   if (screen === 'drivers') renderDrivers();
