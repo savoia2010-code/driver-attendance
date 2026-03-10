@@ -1389,8 +1389,15 @@ function confirmAlcAModal() {
     _isLodgingDay1 = false;
 
     setTimeout(function(){
-      // 翌日日付へ切り替え
-      _workDate = _realTodayKey(); // 現在は既に翌日（午前0時過ぎ）
+      // 翌日日付へ切り替え（実日付が変わっていない場合はDay1+1日で計算）
+      const day1Date = _alcASavedRecord ? (_alcASavedRecord.date || _alcASavedRecord.startDate) : null;
+      if (day1Date) {
+        const d = new Date(day1Date + 'T00:00:00');
+        d.setDate(d.getDate() + 1);
+        _workDate = dateKey(d);
+      } else {
+        _workDate = _realTodayKey();
+      }
 
       // Day2のtodayState：
       //  - start = "00:00"（日付変更時刻）
