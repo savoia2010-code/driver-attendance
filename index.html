@@ -251,11 +251,17 @@
   .rf-fuel-group input { flex:1; text-align:right; }
     padding: 8px; background: rgba(34,197,94,0.1); border-radius: 8px; }
   /* LOADING OVERLAY */
-  .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+  .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.82); z-index: 500; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; opacity: 0; pointer-events: none; transition: opacity 0.25s; }
   .loading-overlay.show { opacity: 1; pointer-events: all; }
-  .loading-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  .loading-text { font-size: 13px; color: var(--text2); }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 36px 48px; display: flex; flex-direction: column; align-items: center; gap: 20px; box-shadow: 0 8px 40px rgba(0,0,0,0.6); }
+  .loading-spinner { width: 52px; height: 52px; border: 4px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.75s linear infinite; }
+  .loading-text { font-size: 15px; font-weight: 600; color: var(--text); letter-spacing: 0.03em; }
+  .loading-sub  { font-size: 12px; color: var(--text3); }
+  .loading-dots span { animation: blink 1.2s infinite; opacity: 0; }
+  .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes spin  { to { transform: rotate(360deg); } }
+  @keyframes blink { 0%,80%,100%{opacity:0} 40%{opacity:1} }
   /* CONFIRM MODAL */
   .confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 400; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
   .confirm-overlay.open { opacity: 1; pointer-events: all; }
@@ -610,8 +616,11 @@
 
 <!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="loadingOverlay">
-  <div class="loading-spinner"></div>
-  <div class="loading-text">読み込み中...</div>
+  <div class="loading-card">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">読み込み中<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span></div>
+    <div class="loading-sub" id="loadingSub">スプレッドシートと通信中</div>
+  </div>
 </div>
 
 <!-- CONFIRM MODAL -->
@@ -749,7 +758,7 @@ const setCurrentDriver = id => { currentDriverId = id; try { _store.setItem(CUR_
 // Load drivers from GAS
 async function loadDriversFromGAS() {
   try {
-    showLoadingOverlay(true);
+    showLoadingOverlay(true, 'ドライバー情報を取得中', 'スプレッドシートと通信中');
     const res = await gasGet({ action: 'getDrivers' });
     if (res.success && res.drivers.length > 0) {
       drivers = res.drivers;
@@ -769,7 +778,7 @@ async function loadDriversFromGAS() {
 async function loadRecordsFromGAS(from, to) {
   if (!currentDriverId) return;
   try {
-    showLoadingOverlay(true);
+    showLoadingOverlay(true, '記録を読み込み中', '少々お待ちください');
     const res = await gasGet({ action: 'getRecords', driverId: currentDriverId, from, to });
     if (res.success) {
       if (!appData[currentDriverId]) appData[currentDriverId] = {};
@@ -2242,9 +2251,16 @@ function showRfSaved() {
   setTimeout(() => { ind.style.display = 'none'; }, 1500);
 }
 
-function showLoadingOverlay(show) {
+function showLoadingOverlay(show, text, sub) {
   const el = document.getElementById('loadingOverlay');
-  if (el) el.classList.toggle('show', show);
+  if (!el) return;
+  if (show) {
+    const t = document.getElementById('loadingText');
+    const s = document.getElementById('loadingSub');
+    if (t) t.innerHTML = (text || '読み込み中') + '<span class="loading-dots"><span>.</span><span>.</span><span>.</span></span>';
+    if (s) s.textContent = sub || 'スプレッドシートと通信中';
+  }
+  el.classList.toggle('show', show);
 }
 
 function showToast(msg, isError=false) {
