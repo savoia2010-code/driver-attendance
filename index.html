@@ -553,8 +553,6 @@
       <div class="rf-num-group"><label>その他</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-other" placeholder="0" oninput="reportFieldChange()"></div>
     </div>
 
-    </div><!-- /#rf-day1-sections -->
-
     <!-- 酒気帯び確認（運転前） -->
     <div class="rf-section" id="rf-alcB-section">🔵 酒気帯び確認（運転前）</div>
     <div class="rf-row">
@@ -620,10 +618,27 @@
       <div id="rf-reports-list"></div>
     </div>
 
+    </div><!-- /#rf-day1-sections -->
+
     <div style="height:20px;"></div>
     <div class="rf-save-indicator" id="rfSaveIndicator" style="display:none;">✓ 自動保存しました</div>
     <div style="height:80px;"></div>
 
+  </div>
+</div>
+
+<!-- 1日目日報編集モーダル -->
+<div class="modal-overlay" id="day1ReportModal" style="z-index:3100;">
+  <div class="modal-card" style="max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+      <div style="font-weight:bold;font-size:16px;">📋 1日目の日報</div>
+      <button onclick="closeDay1ReportModal()" style="background:none;border:none;color:var(--text2);font-size:20px;cursor:pointer;">✕</button>
+    </div>
+    <div id="day1ReportContent"></div>
+    <div style="margin-top:14px;display:flex;gap:8px;">
+      <button onclick="saveDay1Report()" style="flex:1;padding:12px;background:var(--accent);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:bold;cursor:pointer;">保存</button>
+      <button onclick="closeDay1ReportModal()" style="flex:1;padding:12px;background:var(--surface2);color:var(--text);border:none;border-radius:8px;font-size:15px;cursor:pointer;">キャンセル</button>
+    </div>
   </div>
 </div>
 
@@ -1471,20 +1486,78 @@ function setReportDay2Mode(isDay2) {
   if (day1Secs) day1Secs.style.display = isDay2 ? 'none'  : 'block';
 }
 
-// 1日目の日報を確認（_lodgingDay1Dateのレコードを編集モーダルで表示）
+// 1日目の日報編集モーダル
+let _day1EditRec = null;
+
 function viewDay1Report() {
-  if (!_lodgingDay1Date) { showToast('1日目の記録が見つかりません', true); return; }
-  const rec = appData[currentDriverId]?.[_lodgingDay1Date];
-  if (rec) {
-    openRecEdit(_lodgingDay1Date, rec);
-  } else {
-    showToast('1日目の記録を読み込み中...', false);
-    loadRecords(function(){
-      const rec2 = appData[currentDriverId]?.[_lodgingDay1Date];
-      if (rec2) openRecEdit(_lodgingDay1Date, rec2);
-      else showToast('1日目の記録が見つかりません', true);
-    });
-  }
+  const dateKey = _lodgingDay1Date;
+  if (!dateKey) { showToast('1日目の記録が見つかりません', true); return; }
+  const rec = (appData[currentDriverId] || {})[dateKey] || {};
+  _day1EditRec = { ...rec, date: dateKey };
+  renderDay1ReportModal(_day1EditRec);
+  document.getElementById('day1ReportModal').classList.add('open');
+}
+
+function renderDay1ReportModal(rec) {
+  const visits = rec.visits || [];
+  const visitHTML = visits.length
+    ? visits.map((v,i) => `<div style="margin-bottom:6px;padding:8px;background:var(--surface);border-radius:6px;">
+        <div style="font-size:12px;color:var(--text3);margin-bottom:4px;">訪問先 ${i+1}</div>
+        <input class="rf-input" type="text" value="${v.place||''}" oninput="day1VisitChange(${i},'place',this.value)" placeholder="会社名" style="margin-bottom:4px;">
+        <input class="rf-input" type="text" value="${v.report||''}" oninput="day1VisitChange(${i},'report',this.value)" placeholder="報告事項">
+      </div>`).join('')
+    : '<div style="color:var(--text3);font-size:13px;padding:8px 0;">訪問先なし</div>';
+
+  document.getElementById('day1ReportContent').innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div class="rf-section" style="margin-bottom:8px;">配送情報</div>
+      <div class="rf-row"><label class="rf-label">配送地</label>
+        <input class="rf-input" type="text" id="d1-destination" value="${rec.destination||''}" oninput="_day1EditRec.destination=this.value" placeholder="例：兵庫・岡山">
+      </div>
+      <div class="rf-section" style="margin-bottom:8px;margin-top:12px;">訪問先</div>
+      <div id="d1-visits">${visitHTML}</div>
+    </div>
+    <div style="margin-bottom:12px;">
+      <div class="rf-section" style="margin-bottom:8px;">積込数量</div>
+      <div class="rf-grid4">
+        <div class="rf-num-group"><label>組立</label><input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-kumitate" value="${rec.kumitate||''}" oninput="_day1EditRec.kumitate=this.value"></div>
+        <div class="rf-num-group"><label>バラ</label><input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-bara" value="${rec.bara||''}" oninput="_day1EditRec.bara=this.value"></div>
+        <div class="rf-num-group"><label>ワンタッチ</label><input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-onetouch" value="${rec.onetouch||''}" oninput="_day1EditRec.onetouch=this.value"></div>
+        <div class="rf-num-group"><label>小物</label><input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-kobutsu" value="${rec.kobutsu||''}" oninput="_day1EditRec.kobutsu=this.value"></div>
+        <div class="rf-num-group"><label>その他</label><input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-other" value="${rec.other||''}" oninput="_day1EditRec.other=this.value"></div>
+      </div>
+    </div>
+    <div>
+      <div class="rf-section" style="margin-bottom:8px;">出張報告書</div>
+      <div class="rf-row" style="align-items:center;"><label class="rf-label">宿泊</label>
+        <span style="color:var(--accent);font-weight:bold;">${rec.lodging ? 'あり（¥5,000）' : 'なし'}</span>
+      </div>
+      <div class="rf-row"><label class="rf-label">手当（円）</label>
+        <input class="rf-input rf-num" type="text" inputmode="numeric" id="d1-allowance" value="${rec.allowance||''}" oninput="_day1EditRec.allowance=this.value">
+      </div>
+    </div>
+  `;
+}
+
+function day1VisitChange(idx, field, value) {
+  if (!_day1EditRec.visits) _day1EditRec.visits = [];
+  if (!_day1EditRec.visits[idx]) _day1EditRec.visits[idx] = {};
+  _day1EditRec.visits[idx][field] = value;
+}
+
+function saveDay1Report() {
+  if (!_day1EditRec || !_lodgingDay1Date) return;
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  Object.assign(appData[currentDriverId][_lodgingDay1Date] || {}, _day1EditRec);
+  appData[currentDriverId][_lodgingDay1Date] = { ...(_day1EditRec) };
+  closeDay1ReportModal();
+  showToast('✓ 1日目の日報を保存しました');
+  syncToGAS(appData[currentDriverId][_lodgingDay1Date]);
+}
+
+function closeDay1ReportModal() {
+  document.getElementById('day1ReportModal').classList.remove('open');
+  _day1EditRec = null;
 }
 
 // 途中保存（リセットしない）- 打刻・フィールド変更のたびに呼ばれる
