@@ -544,7 +544,7 @@
     </div>
 
     <!-- 酒気帯び確認（運転前） -->
-    <div class="rf-section">🔵 酒気帯び確認（運転前）</div>
+    <div class="rf-section" id="rf-alcB-section">🔵 酒気帯び確認（運転前）</div>
     <div class="rf-row">
       <label class="rf-label">確認方法</label>
       <div class="rf-toggle-group">
@@ -1207,12 +1207,31 @@ function confirmPunch() {
 
   if (pendingPunchType === 'start') {
     todayState.start = time;
+    todayState.startDate = _realTodayKey(); // 始業日を記録（宿泊判定用）
     if (mileage) todayState.startMileage = mileage;
   } else if (pendingPunchType === 'breakStart') {
     todayState.breaks.push({ start: time, end: null, startMileage: mileage || '', place: note || '' });
   } else if (pendingPunchType === 'breakEnd') {
     const last = todayState.breaks[todayState.breaks.length - 1];
     if (last) { last.end = time; if (note) last.place = note; }
+    // 日付をまたいでいる場合（宿泊の可能性）
+    const startDate = todayState.startDate || _realTodayKey();
+    if (_realTodayKey() !== startDate) {
+      // breakEndを一旦保存してからダイアログ
+      saveTodayState();
+      updatePunchUI();
+      closeModal();
+      showToast('✓ 休憩終了 ' + time + ' を記録しました');
+      syncToGAS(todayState);
+      setTimeout(function(){
+        showConfirm(
+          '🌙 日付をまたいでいます',
+          '酒気帯び確認をしますか？',
+          function() { startLodgingTransition(); }
+        );
+      }, 400);
+      return;
+    }
   } else if (pendingPunchType === 'end') {
     todayState.end = time;
     if (mileage) todayState.endMileage = mileage;
@@ -1237,13 +1256,37 @@ function confirmPunch() {
 }
 
 // ============================================================
+// 宿泊による日付またぎ処理
+// ============================================================
+function startLodgingTransition() {
+  // 1日目のレコードをスナップショット（到着なし・宿泊フラグあり）
+  todayState.lodging = true;
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  const day1Key = todayState.startDate || _realTodayKey();
+  // _workDateを1日目にセットして保存
+  const prevWorkDate = _workDate;
+  _workDate = day1Key;
+  const day1Record = { ...todayState, breaks: todayState.breaks.map(b=>({...b})), savedAt: new Date().toISOString() };
+  appData[currentDriverId][day1Key] = day1Record;
+  _workDate = prevWorkDate;
+
+  // 運転後酒気確認（1日目）→ 確定後に運転前酒気確認（2日目）へ
+  showToast('1日目の運転後酒気確認をしてください');
+  setTimeout(function(){
+    openAlcAModal(day1Record, true /* isLodgingDay1 */);
+  }, 400);
+}
+
+// ============================================================
 // 到着後 酒気帯び確認モーダル
 // ============================================================
 let _alcASavedRecord = null;
 let _alcAState = { method:'検知器有', remote:'チャット', result:'無', checker:'', date:'' };
 
-function openAlcAModal(savedRecord) {
+let _isLodgingDay1 = false;
+function openAlcAModal(savedRecord, isLodgingDay1) {
   _alcASavedRecord = savedRecord;
+  _isLodgingDay1 = !!isLodgingDay1;
   _alcAState = { method:'検知器有', remote:'チャット', result:'無', checker:'', date:'' };
   // チップリセット
   ['検知器有','検知器無し'].forEach(v => document.getElementById('alcAModalMethod_'+v)?.classList.toggle('active', v==='検知器有'));
@@ -1315,22 +1358,19 @@ function confirmAlcAModal() {
   }
   document.getElementById('alcAModal').classList.remove('open');
 
-  const wasLodging = !!(_alcASavedRecord && _alcASavedRecord.lodging);
-  showToast(wasLodging ? '✓ 1日目の記録を保存しました。翌日の打刻に移行します' : '✓ お疲れ様でした！記録を保存しました');
-  autoSaveRecord(_alcASavedRecord);
-  _alcASavedRecord = null;
+  if (_isLodgingDay1) {
+    // 宿泊1日目：運転後酒気確認完了 → 1日目保存 → 翌日運転前酒気確認へ
+    autoSaveRecord(_alcASavedRecord);
+    _alcASavedRecord = null;
+    _isLodgingDay1 = false;
 
-  if (wasLodging) {
-    // 翌日日付をセット
-    setTimeout(function() {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      _workDate = dateKey(tomorrow);
-
-      // 翌日分のtodayStateをリセット
+    setTimeout(function(){
+      // 翌日日付へ切り替え
+      _workDate = _realTodayKey(); // 現在は既に翌日（午前0時過ぎ）
+      // 翌日todayStateを新規作成
       todayState = {
         start:null, end:null, breaks:[], type:'normal', note:'',
+        startDate: _workDate,
         destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
         lodging: false, allowance:'',
         alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -1340,9 +1380,27 @@ function confirmAlcAModal() {
       saveTodayState();
       updatePunchUI();
       updateWorkDateBadge();
-      showToast('📅 翌日（' + _workDate + '）の打刻画面に移行しました');
-    }, 1500);
+      showToast('✓ 1日目完了。翌日の運転前酒気確認をしてください');
+      // 翌日の運転前酒気確認モーダルを表示
+      setTimeout(function(){ openAlcBForNewDay(); }, 600);
+    }, 500);
+  } else {
+    // 通常終了
+    showToast('✓ お疲れ様でした！記録を保存しました');
+    autoSaveRecord(_alcASavedRecord);
+    _alcASavedRecord = null;
   }
+}
+
+// 宿泊翌日の運転前酒気確認（日報タブのalcBと同じ内容をモーダルで表示）
+function openAlcBForNewDay() {
+  // 日報タブに遷移して酒気帯び(前)セクションにスクロール
+  goTo('report');
+  setTimeout(function(){
+    const alcBSection = document.getElementById('rf-alcB-section');
+    if (alcBSection) alcBSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    showToast('📋 運転前の酒気帯び確認を入力してください', false);
+  }, 300);
 }
 
 // 途中保存（リセットしない）- 打刻・フィールド変更のたびに呼ばれる
