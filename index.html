@@ -390,6 +390,8 @@
     <div class="clock-time" id="liveTime">00<span class="clock-dot">:</span>00</div>
     <div class="clock-date" id="liveDate">—</div>
     <div id="workDateBadge" style="display:none;margin-top:8px;background:#f97316;color:#000;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;display:inline-block;">📅 翌日分入力中</div>
+    <!-- テスト用：始業日を長押しで変更 -->
+    <div id="testDateBadge" style="display:none;margin-top:6px;background:#333;color:#888;font-size:11px;padding:3px 10px;border-radius:99px;cursor:pointer;" ontouchstart="_testLongPress(event)" ontouchend="_testLongPressCancel()" onmousedown="_testLongPress(event)" onmouseup="_testLongPressCancel()">🔧 始業日: <span id="testDateLabel">—</span></div>
   </div>
 
   <div class="type-toggle">
@@ -856,6 +858,24 @@ const nowHHMM  = () => { const d = new Date(); return `${pad(d.getHours())}:${pa
 const _realTodayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
 let _workDate = null; // null = 実日付、文字列 = 宿泊翌日の作業日付
 const todayKey = () => _workDate || _realTodayKey();
+
+// ── テスト用：始業日を手動変更（長押し1.5秒） ──
+let _testLongPressTimer = null;
+function _testLongPress(e) {
+  _testLongPressTimer = setTimeout(function() {
+    const cur = todayState.startDate || _realTodayKey();
+    const val = prompt('テスト用：始業日を入力してください（YYYY-MM-DD）', cur);
+    if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      todayState.startDate = val;
+      saveTodayState();
+      updateWorkDateBadge();
+      showToast('🔧 始業日を ' + val + ' に変更しました（テスト用）');
+    }
+  }, 1500);
+}
+function _testLongPressCancel() {
+  if (_testLongPressTimer) { clearTimeout(_testLongPressTimer); _testLongPressTimer = null; }
+}
 const dateKey  = d  => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseHHMM = s => { if (!s) return null; const [h,m] = s.split(':').map(Number); return h*60+m; };
 const minutesToH = m => { if (!m || m <= 0) return '0:00'; const h = Math.floor(m/60); const min = m%60; return h + ':' + String(min).padStart(2,'0'); };
@@ -956,6 +976,18 @@ function updateClock() {
 
 // 作業日バッジ表示更新（宿泊翌日入力中かどうか）
 function updateWorkDateBadge() {
+  // テスト用バッジ：始業日がセットされていたら表示
+  const testBadge = document.getElementById('testDateBadge');
+  const testLabel = document.getElementById('testDateLabel');
+  if (testBadge && testLabel) {
+    const sd = todayState.startDate;
+    if (sd && sd !== _realTodayKey()) {
+      testBadge.style.display = 'inline-block';
+      testLabel.textContent = sd;
+    } else {
+      testBadge.style.display = 'none';
+    }
+  }
   const badge = document.getElementById('workDateBadge');
   if (!badge) return;
   if (_workDate && _workDate !== _realTodayKey()) {
@@ -1238,10 +1270,10 @@ function confirmPunch() {
     if (mileage) todayState.startMileage = mileage;
   } else if (pendingPunchType === 'breakStart') {
     todayState.breaks.push({ start: time, end: null, startMileage: mileage || '', place: note || '' });
-    // 日付をまたいでいる場合、または宿泊フラグONの場合 → 運転後酒気確認
+    // 実際に日付をまたいでいる場合のみ → 運転後酒気確認
     const startDate = todayState.startDate || _realTodayKey();
     const dateChanged = _realTodayKey() !== startDate;
-    if (dateChanged || todayState.lodging) {
+    if (dateChanged) {
       saveTodayState();
       updatePunchUI();
       closeModal();
