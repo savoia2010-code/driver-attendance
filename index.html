@@ -1075,21 +1075,28 @@ function openModal(type) {
         const lat = pos.coords.latitude.toFixed(5);
         const lng = pos.coords.longitude.toFixed(5);
         // 逆ジオコーディング（nominatim）
-        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja`)
+        fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=ja&zoom=18&addressdetails=1`)
           .then(r => r.json())
           .then(d => {
             const addr = d.address || {};
-            // 都道府県・市区町村・町名・番地を組み合わせる
             const parts = [
-              addr.state,                                          // 都道府県
-              addr.city || addr.town || addr.village || addr.county, // 市区町村
-              addr.suburb || addr.neighbourhood || addr.quarter,  // 地区
-              addr.road,                                           // 道路・町名
-              addr.house_number,                                   // 番地
+              addr.state,
+              addr.city || addr.town || addr.village || addr.county,
+              addr.city_district || addr.suburb || addr.neighbourhood || addr.quarter,
+              addr.hamlet || addr.allotments,
+              addr.road,
+              addr.house_number,
             ].filter(Boolean);
-            const place = parts.length > 0
-              ? parts.join('') + '付近'
-              : `${lat},${lng}`;
+            let place;
+            if (parts.length >= 4) {
+              place = parts.join('') + '付近';
+            } else if (d.display_name) {
+              // display_nameから日本の住所部分を抽出（末尾の「日本」を除去）
+              const dn = d.display_name.split(',').map(s=>s.trim()).filter(s=>s&&s!=='日本');
+              place = dn.slice(0, Math.min(5, dn.length)).reverse().join('') + '付近';
+            } else {
+              place = parts.join('') + '付近' || `${lat},${lng}`;
+            }
             noteEl.value = place;
             noteEl.disabled = false;
           })
