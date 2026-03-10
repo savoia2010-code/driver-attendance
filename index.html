@@ -1183,32 +1183,17 @@ function confirmPunch() {
     const last = todayState.breaks[todayState.breaks.length - 1];
     if (last) { last.end = time; if (note) last.place = note; }
   } else if (pendingPunchType === 'end') {
-    const _time = time, _note = note, _mileage = mileage;
+    todayState.end = time;
+    if (mileage) todayState.endMileage = mileage;
+    if (note) todayState.note = note;
+    if (!appData[currentDriverId]) appData[currentDriverId] = {};
+    appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks], savedAt: new Date().toISOString() };
+    const savedRecord = { ...appData[currentDriverId][todayKey()] };
+    saveTodayState();
+    updatePunchUI();
     closeModal();
-    showConfirm('お疲れ様です', 'この時刻で記録してよろしいですか？', () => {
-      todayState.end = _time;
-      if (_mileage) todayState.endMileage = _mileage;
-      if (_note) todayState.note = _note;
-      if (!appData[currentDriverId]) appData[currentDriverId] = {};
-      appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks], savedAt: new Date().toISOString() };
-      const savedRecord = { ...appData[currentDriverId][todayKey()] };
-      todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
-    destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
-    lodging:'', allowance:'',
-    alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
-    alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
-    visits: [],
-    fuelEntries: [],
-    report:'',
-    // advance/remittance/balance はスプレッドシート側で自動計算
-  };
-      _store.removeItem('today_' + currentDriverId);
-      updatePunchUI();
-      closeModal();
-      showToast('✓ 終業を記録しました。到着後の酒気確認をしてください');
-      setTimeout(function(){ openAlcAModal(savedRecord); }, 300);
-    });
+    showToast('✓ 終業を記録しました。到着後の酒気確認をしてください');
+    setTimeout(function(){ openAlcAModal(savedRecord); }, 300);
     return;
   }
   if (note) todayState.note = note;
@@ -1217,6 +1202,7 @@ function confirmPunch() {
   closeModal();
   const labels = { start:'始業', breakStart:'休憩開始', breakEnd:'休憩終了' };
   showToast('✓ ' + labels[pendingPunchType] + ' ' + time + ' を記録しました');
+  syncToGAS(todayState);
 }
 
 // ============================================================
@@ -1302,6 +1288,62 @@ function confirmAlcAModal() {
   _alcASavedRecord = null;
 }
 
+// 途中保存（リセットしない）- 打刻・フィールド変更のたびに呼ばれる
+async function syncToGAS(state) {
+  if (!state) state = todayState;
+  if (!state.start) return; // 始業前は送信しない
+  const driverName = getDriverName(currentDriverId);
+  const record = {
+    action: 'saveRecord',
+    driverId: currentDriverId,
+    driverName: driverName,
+    date: todayKey(),
+    start: state.start,
+    end: state.end,
+    breaks: state.breaks || [],
+    type: state.type || 'normal',
+    note: state.note || '',
+    startMileage: state.startMileage || '',
+    endMileage: state.endMileage || '',
+    destination:  state.destination  || '',
+    count:        (state.visits||[]).length,
+    kumitate:     state.kumitate     || '',
+    bara:         state.bara         || '',
+    onetouch:     state.onetouch     || '',
+    kobutsu:      state.kobutsu      || '',
+    other:        state.other        || '',
+    lodging:      state.lodging ? 5000 : 0,
+    allowance:    Number(state.allowance) || 0,
+    startPlace:   '金丸',
+    endPlace:     '金丸',
+    alcBDate:     state.alcBDate     || '',
+    alcBMethod:   state.alcBMethod   || '',
+    alcBRemote:   state.alcBRemote   || '',
+    alcBResult:   state.alcBResult   || '',
+    alcBChecker:  state.alcBChecker  || '',
+    alcADate:     state.alcADate     || '',
+    alcAMethod:   state.alcAMethod   || '',
+    alcARemote:   state.alcARemote   || '',
+    alcAResult:   state.alcAResult   || '',
+    alcAChecker:  state.alcAChecker  || '',
+    visits:       state.visits       || [],
+    visitPlace:   (state.visits||[]).map(v=>v.place).filter(Boolean).join('・'),
+    report:       state.report       || '',
+    fuelEntries:  state.fuelEntries  || [],
+    fuelShop:     (state.fuelEntries||[]).map(f=>f.shop).filter(Boolean).join('、'),
+    fuel:         (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuel||0),0)||'',
+    fuelRegular:  (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuelRegular||0),0)||'',
+    adblue:       (state.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.adblue||0),0)||'',
+    advance:      (state.lodging ? 5000 : 0) + (Number(state.allowance)||0),
+    remittance:   (state.lodging ? 5000 : 0) + (Number(state.allowance)||0),
+    balance:      0
+  };
+  try {
+    await gasPost(record);
+  } catch(e) {}
+}
+
+// 終業後の最終保存（alcAModal確定後・リセットあり）
 async function autoSaveRecord(savedState) {
   const state = savedState || appData[currentDriverId]?.[todayKey()] || {};
   const driverName = getDriverName(currentDriverId);
@@ -1904,6 +1946,7 @@ function setRfChip(field, value) {
 }
 
 let rfSaveTimer = null;
+let _gasSyncTimer = null;
 function reportFieldChange() {
   // テキスト・数値フィールドをtodayStateに反映
   RF_FIELDS.forEach(key => {
@@ -1913,9 +1956,12 @@ function reportFieldChange() {
     }
   });
   saveTodayState();
-  // デバウンス保存
+  // デバウンス保存（UI表示）
   clearTimeout(rfSaveTimer);
   rfSaveTimer = setTimeout(showRfSaved, 800);
+  // デバウンスGAS保存（2秒後）
+  clearTimeout(_gasSyncTimer);
+  _gasSyncTimer = setTimeout(function(){ syncToGAS(todayState); }, 2000);
 }
 
 
@@ -1978,6 +2024,8 @@ function updateVisit(i, field, val) {
   if (badge) badge.textContent = todayState.visits.length + ' 件';
   // 訪問先名が変わったら報告欄のラベルも更新
   if (field === 'place') renderReports();
+  clearTimeout(_gasSyncTimer);
+  _gasSyncTimer = setTimeout(function(){ syncToGAS(todayState); }, 2000);
 }
 
 // ============================================================
@@ -2069,6 +2117,8 @@ function updateFuel(i, field, val) {
   if (!todayState.fuelEntries || !todayState.fuelEntries[i]) return;
   todayState.fuelEntries[i][field] = val;
   saveTodayState();
+  clearTimeout(_gasSyncTimer);
+  _gasSyncTimer = setTimeout(function(){ syncToGAS(todayState); }, 2000);
 }
 
 function escHtml(s) {
