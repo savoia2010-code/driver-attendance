@@ -76,7 +76,7 @@
 
   /* PUNCH BUTTONS */
   .punch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 20px; }
-  .punch-btn { border: none; border-radius: var(--radius); padding: 20px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: 'Noto Sans JP', sans-serif; transition: transform 0.1s, opacity 0.2s; }
+  .punch-btn { border: none; border-radius: var(--radius); padding: 20px 12px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 8px; font-family: 'Noto Sans JP', sans-serif; transition: transform 0.1s, opacity 0.2s; user-select: none; -webkit-user-select: none; }
   .punch-btn:active   { transform: scale(0.96); }
   .punch-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .punch-btn .btn-icon  { font-size: 28px; }
@@ -391,7 +391,7 @@
     <div class="clock-date" id="liveDate">—</div>
     <div id="workDateBadge" style="display:none;margin-top:8px;background:#f97316;color:#000;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;display:inline-block;">📅 翌日分入力中</div>
     <!-- テスト用：始業日を長押しで変更 -->
-    <div id="testDateBadge" style="display:none;margin-top:6px;background:#333;color:#888;font-size:11px;padding:3px 10px;border-radius:99px;cursor:pointer;" ontouchstart="_testLongPress(event)" ontouchend="_testLongPressCancel()" onmousedown="_testLongPress(event)" onmouseup="_testLongPressCancel()">🔧 始業日: <span id="testDateLabel">—</span></div>
+    <div id="testDateBadge" style="display:none;margin-top:6px;background:#333;color:#888;font-size:11px;padding:3px 10px;border-radius:99px;cursor:pointer;user-select:none;-webkit-user-select:none;" ontouchstart="_testLongPress(event);event.preventDefault();" ontouchend="_testLongPressCancel()" onmousedown="_testLongPress(event)" onmouseup="_testLongPressCancel()">🔧 始業日: <span id="testDateLabel">—</span></div>
   </div>
 
   <div class="type-toggle">
