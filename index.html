@@ -389,6 +389,7 @@
   <div class="clock-display">
     <div class="clock-time" id="liveTime">00<span class="clock-dot">:</span>00</div>
     <div class="clock-date" id="liveDate">—</div>
+    <div id="workDateBadge" style="display:none;margin-top:8px;background:#f97316;color:#000;font-size:13px;font-weight:700;padding:4px 14px;border-radius:99px;display:inline-block;">📅 翌日分入力中</div>
   </div>
 
   <div class="type-toggle">
@@ -409,7 +410,7 @@
     </button>
     <button class="punch-btn end"         id="btn-end"        onclick="openModal('end')" disabled>
       <span class="btn-icon">🔴</span>
-      <span class="btn-label">終業</span>
+      <span class="btn-label">到着</span>
       <span class="btn-sub">帰社</span>
     </button>
     <button class="punch-btn break-start" id="btn-breakStart" onclick="openModal('breakStart')" disabled>
@@ -658,11 +659,11 @@
         <input type="number" class="rec-edit-input" id="recEditStartMileage" placeholder="例：12345" min="0">
       </div>
       <div class="rec-edit-row">
-        <div class="rec-edit-label">🔴 終業時刻</div>
+        <div class="rec-edit-label">🔴 到着時刻</div>
         <input type="time" class="rec-edit-input" id="recEditEnd">
       </div>
       <div class="rec-edit-row">
-        <div class="rec-edit-label">🚗 終業時メーター（km）</div>
+        <div class="rec-edit-label">🚗 到着時メーター（km）</div>
         <input type="number" class="rec-edit-input" id="recEditEndMileage" placeholder="例：12500" min="0">
       </div>
       <div class="rec-edit-section">
@@ -825,7 +826,9 @@ let currentMonthlyOffset = 0;
 // ============================================================
 const pad      = n  => String(n).padStart(2, '0');
 const nowHHMM  = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
-const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const _realTodayKey = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+let _workDate = null; // null = 実日付、文字列 = 宿泊翌日の作業日付
+const todayKey = () => _workDate || _realTodayKey();
 const dateKey  = d  => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
 const parseHHMM = s => { if (!s) return null; const [h,m] = s.split(':').map(Number); return h*60+m; };
 const minutesToH = m => { if (!m || m <= 0) return '0:00'; const h = Math.floor(m/60); const min = m%60; return h + ':' + String(min).padStart(2,'0'); };
@@ -924,6 +927,25 @@ function updateClock() {
 }
 // clock started in init
 
+// 作業日バッジ表示更新（宿泊翌日入力中かどうか）
+function updateWorkDateBadge() {
+  const badge = document.getElementById('workDateBadge');
+  if (!badge) return;
+  if (_workDate && _workDate !== _realTodayKey()) {
+    const d = new Date(_workDate + 'T00:00:00');
+    badge.textContent = `📅 ${d.getMonth()+1}月${d.getDate()}日（翌日分）入力中`;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// 翌日入力完了後に日付をリセット（到着打刻後）
+function resetWorkDate() {
+  _workDate = null;
+  updateWorkDateBadge();
+}
+
 // ============================================================
 // TODAY STATE
 // breaks: [{start:"HH:MM", end:"HH:MM"|null}]
@@ -1021,7 +1043,7 @@ function renderStatusBar() {
   html += `</div>`;
 
   html += `<div class="status-row-last">
-    <span class="status-label">🔴 終業</span>
+    <span class="status-label">🔴 到着</span>
     <span style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;">
       <span class="status-val ${todayState.end?'set':'empty'}">${todayState.end||'—'}</span>
       ${todayState.endMileage ? `<span style="font-size:11px;color:var(--info)">${Number(todayState.endMileage).toLocaleString()}km</span>` : ''}
@@ -1064,7 +1086,7 @@ let pendingPunchType = null;
 
 function openModal(type) {
   pendingPunchType = type;
-  const labels = { start:'始業時刻', breakStart:'休憩開始時刻', breakEnd:'休憩終了時刻', end:'終業時刻' };
+  const labels = { start:'始業時刻', breakStart:'休憩開始時刻', breakEnd:'休憩終了時刻', end:'到着時刻' };
   document.getElementById('modalTitle').textContent = labels[type] + 'を確認・修正';
   document.getElementById('modalTimeInput').value    = nowHHMM();
   document.getElementById('modalMileageInput').value = '';
@@ -1147,7 +1169,7 @@ let editTarget = null; // { type: 'start'|'end'|'break', breakIdx, breakField }
 
 function openEditModal(field) {
   editTarget = { type: field };
-  const labels = { start: '始業時刻', end: '終業時刻' };
+  const labels = { start: '始業時刻', end: '到着時刻' };
   document.getElementById('modalTitle').textContent = labels[field] + 'を修正';
   document.getElementById('modalTimeInput').value   = todayState[field] || nowHHMM();
   document.getElementById('modalNoteInput').value   = '';
@@ -1175,7 +1197,7 @@ function confirmPunch() {
   const mileage = document.getElementById('modalMileageInput').value;
   if (!time) { showToast('時刻を入力してください', true); return; }
 
-  // 始業・休憩開始・終業は走行距離必須
+  // 始業・休憩開始・到着は走行距離必須
   const needsMileage = ['start','breakStart','end'].includes(pendingPunchType);
   if (needsMileage && !mileage) {
     showToast('オドメーターを入力してください', true);
@@ -1201,7 +1223,7 @@ function confirmPunch() {
     saveTodayState();
     updatePunchUI();
     closeModal();
-    showToast('✓ 終業を記録しました。到着後の酒気確認をしてください');
+    showToast('✓ 到着を記録しました。酒気確認をしてください');
     setTimeout(function(){ openAlcAModal(savedRecord); }, 300);
     return;
   }
@@ -1292,9 +1314,35 @@ function confirmAlcAModal() {
     }
   }
   document.getElementById('alcAModal').classList.remove('open');
-  showToast('✓ お疲れ様でした！記録を保存しました');
+
+  const wasLodging = !!(_alcASavedRecord && _alcASavedRecord.lodging);
+  showToast(wasLodging ? '✓ 1日目の記録を保存しました。翌日の打刻に移行します' : '✓ お疲れ様でした！記録を保存しました');
   autoSaveRecord(_alcASavedRecord);
   _alcASavedRecord = null;
+
+  if (wasLodging) {
+    // 翌日日付をセット
+    setTimeout(function() {
+      const today = new Date();
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      _workDate = dateKey(tomorrow);
+
+      // 翌日分のtodayStateをリセット
+      todayState = {
+        start:null, end:null, breaks:[], type:'normal', note:'',
+        destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
+        lodging: false, allowance:'',
+        alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
+        alcADate:'', alcAMethod:'検知器有', alcARemote:'チャット', alcAResult:'無', alcAChecker:'',
+        visits: [], fuelEntries: [], report:'',
+      };
+      saveTodayState();
+      updatePunchUI();
+      updateWorkDateBadge();
+      showToast('📅 翌日（' + _workDate + '）の打刻画面に移行しました');
+    }, 1500);
+  }
 }
 
 // 途中保存（リセットしない）- 打刻・フィールド変更のたびに呼ばれる
@@ -1420,6 +1468,7 @@ async function autoSaveRecord(savedState) {
   _store.removeItem('today_' + currentDriverId);
   updatePunchUI();
   showToast('✓ お疲れ様でした！記録を保存しました');
+  resetWorkDate(); // 宿泊翌日入力が完了したら日付をリセット
   // Send to GAS in background
   try {
     const res = await gasPost(record);
@@ -1452,7 +1501,7 @@ function resetToday() {
 }
 
 function saveRecord() {
-  if (!todayState.start || !todayState.end) { showToast('始業と終業の両方が必要です', true); return; }
+  if (!todayState.start || !todayState.end) { showToast('始業と到着の両方が必要です', true); return; }
   if (isBreakOpen()) { showToast('進行中の休憩があります', true); return; }
   if (!appData[currentDriverId]) appData[currentDriverId] = {};
   appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks], savedAt: new Date().toISOString() };
@@ -1508,7 +1557,7 @@ async function renderRecords() {
       </div>
       <div class="record-times">
         <div class="record-time-item"><div class="t-label">始業</div><div class="t-val">${rec.start||'—'}</div>${rec.startMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.startMileage).toLocaleString()}km</div>`:''}</div>
-        <div class="record-time-item"><div class="t-label">終業</div><div class="t-val">${rec.end||'—'}</div>${rec.endMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.endMileage).toLocaleString()}km</div>`:''}</div>
+        <div class="record-time-item"><div class="t-label">到着</div><div class="t-val">${rec.end||'—'}</div>${rec.endMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.endMileage).toLocaleString()}km</div>`:''}</div>
         ${rec.startMileage&&rec.endMileage?`<div class="record-time-item"><div class="t-label">オドメーター</div><div class="t-val" style="color:var(--info)">${(Number(rec.endMileage)-Number(rec.startMileage)).toLocaleString()}km</div></div>`:''}
       </div>
       ${breaksHtml}
@@ -1756,7 +1805,7 @@ async function saveRecEdit() {
   const start = document.getElementById('recEditStart').value;
   const end   = document.getElementById('recEditEnd').value;
   const note  = document.getElementById('recEditNote').value;
-  if (!start || !end) { showToast('始業・終業は必須です', true); return; }
+  if (!start || !end) { showToast('始業・到着は必須です', true); return; }
 
   if (!appData[currentDriverId]) appData[currentDriverId] = {};
   const existing = appData[currentDriverId][recEditDate] || {};
@@ -2279,6 +2328,7 @@ async function init() {
   if (!currentDriverId && drivers.length > 0) currentDriverId = drivers[0].id;
   loadTodayState();
   if (isWeekend(todayKey()) && !todayState.start) { todayState.type='holiday'; saveTodayState(); }
+  updateWorkDateBadge();
   updatePunchUI();
   updateDriverHeaders();
   renderDrivers();
