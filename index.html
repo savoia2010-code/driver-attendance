@@ -709,7 +709,7 @@
 const STORAGE_KEY    = 'driver_attendance_v2';
 const DRIVERS_KEY    = 'driver_list_v1';
 const CUR_DRIVER_KEY = 'current_driver_v1';
-const GAS_URL        = 'https://script.google.com/macros/s/AKfycbw-vrzGSdJQ6xi6ObxQ0RxdRtWA29dcwVvNC4p6gLGqZf5Glx6e4rOV7ZEZHzLIv-1dnQ/exec';
+const GAS_URL        = 'https://script.google.com/macros/s/AKfycbxQwSq_g6iALjPkqEuhBGhaNqPHNRhX-fZpp-g68MtocwlZE0qyS-XUvXpm_zj7ExZLAQ/exec';
 
 // ============================================================
 // STORAGE — localStorage for today's state + PIN, GAS for records
@@ -1339,9 +1339,8 @@ async function syncToGAS(state) {
     balance:      0
   };
   try {
-    const _res = await gasPost(record);
-    showToast('breaks送信: ' + JSON.stringify(record.breaks), false);
-  } catch(e) { showToast('送信エラー:'+e.message, true); }
+    await gasPost(record);
+  } catch(e) {}
 }
 
 // 終業後の最終保存（alcAModal確定後・リセットあり）
