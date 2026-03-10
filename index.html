@@ -952,7 +952,7 @@ function resetWorkDate() {
 // last element with end===null = currently on break
 // ============================================================
 let todayState = {
-  start:null, end:null, breaks:[], type:'normal', note:'',
+  start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
   // 日報項目
   destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
   lodging: false, allowance:'',
@@ -970,10 +970,10 @@ function loadTodayState() {
     if (s) {
       // migrate old single-break format
       if (!s.breaks && s.breakStart) s.breaks = [{start: s.breakStart, end: s.breakEnd||null}];
-      todayState = { start:null, end:null, breaks:[], type:'normal', note:'', ...s };
+      todayState = { start:null, end:null, breaks:[], type:'normal', note:'', startDate:null, ...s };
     } else {
       todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
+    start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
     destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
     lodging:'', allowance:'',
     alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -985,7 +985,7 @@ function loadTodayState() {
   };
     }
   } catch(e) { todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
+    start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
     destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
     lodging:'', allowance:'',
     alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -1214,9 +1214,10 @@ function confirmPunch() {
   } else if (pendingPunchType === 'breakEnd') {
     const last = todayState.breaks[todayState.breaks.length - 1];
     if (last) { last.end = time; if (note) last.place = note; }
-    // 日付をまたいでいる場合（宿泊の可能性）
+    // 日付をまたいでいる場合、または宿泊フラグONの場合
     const startDate = todayState.startDate || _realTodayKey();
-    if (_realTodayKey() !== startDate) {
+    const dateChanged = _realTodayKey() !== startDate;
+    if (dateChanged || todayState.lodging) {
       // breakEndを一旦保存してからダイアログ
       saveTodayState();
       updatePunchUI();
@@ -1369,7 +1370,7 @@ function confirmAlcAModal() {
       _workDate = _realTodayKey(); // 現在は既に翌日（午前0時過ぎ）
       // 翌日todayStateを新規作成
       todayState = {
-        start:null, end:null, breaks:[], type:'normal', note:'',
+        start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
         startDate: _workDate,
         destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
         lodging: false, allowance:'',
@@ -1513,7 +1514,7 @@ async function autoSaveRecord(savedState) {
   appData[currentDriverId][todayKey()] = { ...todayState, breaks: [...todayState.breaks] };
   // Reset state immediately so UI unlocks
   todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
+    start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
     destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
     lodging:'', allowance:'',
     alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -1543,7 +1544,7 @@ async function autoSaveRecord(savedState) {
 function resetToday() {
   showConfirm('打刻をやり直す', '現在の入力内容はすべて消えます。', () => {
     todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
+    start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
     destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
     lodging:'', allowance:'',
     alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -1944,7 +1945,7 @@ function resetAllData() {
   drivers = [{ id: 'd1', name: '山田 太郎' }, { id: 'd2', name: '鈴木 次郎' }];
   currentDriverId = 'd1';
   todayState = {
-    start:null, end:null, breaks:[], type:'normal', note:'',
+    start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
     destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
     lodging:'', allowance:'',
     alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
