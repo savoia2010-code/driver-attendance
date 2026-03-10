@@ -1224,11 +1224,12 @@ function confirmPunch() {
       closeModal();
       showToast('✓ 休憩終了 ' + time + ' を記録しました');
       syncToGAS(todayState);
+      const _breakEndTime = time; // 休憩終了時刻を保持
       setTimeout(function(){
         showConfirm(
           '🌙 日付をまたいでいます',
           '酒気帯び確認をしますか？',
-          function() { startLodgingTransition(); }
+          function() { startLodgingTransition(_breakEndTime); }
         );
       }, 400);
       return;
@@ -1259,24 +1260,46 @@ function confirmPunch() {
 // ============================================================
 // 宿泊による日付またぎ処理
 // ============================================================
-function startLodgingTransition() {
-  // 1日目のレコードをスナップショット（到着なし・宿泊フラグあり）
+function startLodgingTransition(breakEndTime) {
+  // ── Day1レコード作成 ──
+  // 宿泊休憩の「開始」まで（endなし）を1日目として保存
+  // breaks の最後（宿泊休憩）のendを取り除いて1日目分のみにする
   todayState.lodging = true;
-  if (!appData[currentDriverId]) appData[currentDriverId] = {};
   const day1Key = todayState.startDate || _realTodayKey();
-  // _workDateを1日目にセットして保存
-  const prevWorkDate = _workDate;
-  _workDate = day1Key;
-  const day1Record = { ...todayState, breaks: todayState.breaks.map(b=>({...b})), savedAt: new Date().toISOString() };
-  appData[currentDriverId][day1Key] = day1Record;
-  _workDate = prevWorkDate;
 
-  // 運転後酒気確認（1日目）→ 確定後に運転前酒気確認（2日目）へ
+  // 1日目のbreaks：宿泊休憩（最後のbreak）はstartのみ（endなし）
+  const day1Breaks = todayState.breaks.map((b, idx) => {
+    if (idx === todayState.breaks.length - 1) {
+      // 宿泊休憩はstartのみ保持（endは翌日分）
+      return { ...b, end: null };
+    }
+    return { ...b };
+  });
+
+  const day1Record = {
+    ...todayState,
+    breaks: day1Breaks,
+    end: null, // 1日目は到着なし
+    savedAt: new Date().toISOString(),
+    date: day1Key,
+  };
+
+  if (!appData[currentDriverId]) appData[currentDriverId] = {};
+  appData[currentDriverId][day1Key] = day1Record;
+
+  // ── 宿泊休憩の開始・終了時刻を保持（2日目セットアップ用）──
+  const lastBreak = todayState.breaks[todayState.breaks.length - 1];
+  _lodgingBreakStartTime = lastBreak ? (lastBreak.start || '00:00') : '00:00';
+  _lodgingBreakEndTime = breakEndTime || '00:00';
+
+  // 運転後酒気確認（1日目）
   showToast('1日目の運転後酒気確認をしてください');
   setTimeout(function(){
     openAlcAModal(day1Record, true /* isLodgingDay1 */);
   }, 400);
 }
+let _lodgingBreakStartTime = '00:00';
+let _lodgingBreakEndTime = '00:00';
 
 // ============================================================
 // 到着後 酒気帯び確認モーダル
@@ -1368,10 +1391,18 @@ function confirmAlcAModal() {
     setTimeout(function(){
       // 翌日日付へ切り替え
       _workDate = _realTodayKey(); // 現在は既に翌日（午前0時過ぎ）
-      // 翌日todayStateを新規作成
+
+      // Day2のtodayState：
+      //  - start = "00:00"（日付変更時刻）
+      //  - breaks = [{start:"00:00", end:breakEndTime}]（就寝時間を休憩として記録）
+      //  - startDate = 翌日
+      const day2Date = _workDate;
+      const sleepBreakStart = _lodgingBreakStartTime || '00:00';
+      const sleepBreakEnd   = _lodgingBreakEndTime   || '00:00';
       todayState = {
-        start:null, end:null, breaks:[], type:'normal', note:'', startDate:null,
-        startDate: _workDate,
+        start: sleepBreakStart, end: null, startDate: day2Date,
+        breaks: [{ start: sleepBreakStart, end: sleepBreakEnd, place: '宿泊（就寝）' }],
+        type: 'normal', note: '',
         destination:'', kumitate:'', bara:'', onetouch:'', kobutsu:'', other:'',
         lodging: false, allowance:'',
         alcBDate:'', alcBMethod:'検知器有', alcBRemote:'チャット', alcBResult:'無', alcBChecker:'',
@@ -1382,7 +1413,6 @@ function confirmAlcAModal() {
       updatePunchUI();
       updateWorkDateBadge();
       showToast('✓ 1日目完了。翌日の運転前酒気確認をしてください');
-      // 翌日の運転前酒気確認モーダルを表示
       setTimeout(function(){ openAlcBForNewDay(); }, 600);
     }, 500);
   } else {
