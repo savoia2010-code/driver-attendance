@@ -1339,8 +1339,9 @@ async function syncToGAS(state) {
     balance:      0
   };
   try {
-    await gasPost(record);
-  } catch(e) {}
+    const _res = await gasPost(record);
+    showToast('breaks送信: ' + JSON.stringify(record.breaks), false);
+  } catch(e) { showToast('送信エラー:'+e.message, true); }
 }
 
 // 終業後の最終保存（alcAModal確定後・リセットあり）
@@ -2218,62 +2219,7 @@ function onCheckerSelect(side) {
   }
 
   saveTodayState();
-
-  // スプレッドシートへ即時送信
-  if (!checkerVal) return;
-  clearTimeout(rfSaveTimer);
-  rfSaveTimer = setTimeout(async function() {
-    try {
-      await gasPost({
-        action:      'saveRecord',
-        driverId:    currentDriverId,
-        driverName:  getDriverName(currentDriverId),
-        date:        todayKey(),
-        start:       todayState.start        || '',
-        end:         todayState.end          || '',
-        breaks:      todayState.breaks,
-        type:        todayState.type,
-        note:        todayState.note         || '',
-        startMileage: todayState.startMileage || '',
-        endMileage:   todayState.endMileage   || '',
-        destination:   todayState.destination  || '',
-        count:         (todayState.visits||[]).length,
-        kumitate:      todayState.kumitate     || '',
-        bara:          todayState.bara         || '',
-        onetouch:      todayState.onetouch     || '',
-        kobutsu:       todayState.kobutsu      || '',
-        other:         todayState.other        || '',
-        lodging:      todayState.lodging ? 5000 : 0,
-        allowance:    Number(todayState.allowance) || 0,
-        startPlace:    '金丸',
-        endPlace:      '金丸',
-        alcBDate:      todayState.alcBDate     || '',
-        alcBMethod:    todayState.alcBMethod   || '',
-        alcBRemote:    todayState.alcBRemote   || '',
-        alcBResult:    todayState.alcBResult   || '',
-        alcBChecker:   todayState.alcBChecker  || '',
-        alcADate:      todayState.alcADate     || '',
-        alcAMethod:    todayState.alcAMethod   || '',
-        alcARemote:    todayState.alcARemote   || '',
-        alcAResult:    todayState.alcAResult   || '',
-        alcAChecker:   todayState.alcAChecker  || '',
-        visits:        todayState.visits       || [],
-        visitPlace:    (todayState.visits||[]).map(v=>v.place).filter(Boolean).join('・'),
-        report:        todayState.report       || '',
-        fuelEntries:   todayState.fuelEntries  || [],
-        fuelShop:      (todayState.fuelEntries||[]).map(f=>f.shop).filter(Boolean).join('、'),
-        fuel:          (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuel||0),0)||'',
-        fuelRegular:   (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.fuelRegular||0),0)||'',
-        adblue:        (todayState.fuelEntries||[]).reduce((s,f)=>s+parseFloat(f.adblue||0),0)||'',
-        advance:       (todayState.lodging ? 5000 : 0) + (Number(todayState.allowance)||0),
-        remittance:    (todayState.lodging ? 5000 : 0) + (Number(todayState.allowance)||0),
-        balance:       0
-      });
-      showRfSaved();
-    } catch(e) {
-      // オフライン時はlocalStorageに保存済みのためスキップ
-    }
-  }, 300);
+  syncToGAS(todayState);
 }
 
 
@@ -2286,6 +2232,8 @@ function onLodgingChange() {
   if (label) label.textContent = todayState.lodging ? 'あり（¥5,000）' : 'なし';
   saveTodayState();
   showToast(todayState.lodging ? '✓ 宿泊あり（¥5,000）を記録しました' : '宿泊をなしに変更しました');
+  clearTimeout(_gasSyncTimer);
+  _gasSyncTimer = setTimeout(function(){ syncToGAS(todayState); }, 2000);
 }
 
 function showRfSaved() {
