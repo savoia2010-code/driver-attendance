@@ -772,9 +772,6 @@ async function loadRecordsFromGAS(from, to) {
     showLoadingOverlay(true);
     const res = await gasGet({ action: 'getRecords', driverId: currentDriverId, from, to });
     if (res.success) {
-      if (res.debugSample) {
-        showToast('DEBUG: raw3=' + JSON.stringify(res.debugSample.raw3) + ' type=' + res.debugSample.type3, true);
-      }
       if (!appData[currentDriverId]) appData[currentDriverId] = {};
       res.records.forEach(function(r) {
         // Convert GAS record back to app format
