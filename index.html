@@ -13,8 +13,8 @@
 <style>
   :root {
     --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
-    --accent: #f97316; --danger: #ef4444; --success: #22c55e; --info: #3b82f6;
-    --text: #f0f0f0; --text2: #a0a0a0; --text3: #606060;
+    --accent: #fb923c; --danger: #ef4444; --success: #22c55e; --info: #3b82f6;
+    --text: #f0f0f0; --text2: #b8b8b8; --text3: #909090;
     --night: #818cf8; --holiday: #f43f5e; --overtime: #facc15;
     --radius: 14px; --radius-sm: 8px;
   }
@@ -41,22 +41,22 @@
   /* CLOCK */
   .clock-display { text-align: center; padding: 24px 20px 16px; }
   .clock-time { font-family: 'Bebas Neue', sans-serif; font-size: 72px; letter-spacing: 4px; line-height: 1; color: var(--text); }
-  .clock-date { font-size: 13px; color: var(--text2); margin-top: 4px; letter-spacing: 1px; }
+  .clock-date { font-size: 14px; color: var(--text2); margin-top: 4px; letter-spacing: 1px; }
   .clock-dot { display: inline-block; animation: blink 1s step-end infinite; }
   @keyframes blink { 50% { opacity: 0; } }
 
   /* TYPE TOGGLE */
   .type-toggle { margin: 0 20px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
-  .type-toggle label { font-size: 13px; color: var(--text2); }
+  .type-toggle label { font-size: 14px; color: var(--text2); }
   .toggle-opts { display: flex; gap: 8px; margin-left: auto; }
-  .type-chip { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); font-size: 12px; cursor: pointer; background: none; color: var(--text2); transition: all 0.2s; font-family: 'Noto Sans JP', sans-serif; }
+  .type-chip { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--border); font-size: 13px; cursor: pointer; background: none; color: var(--text2); transition: all 0.2s; font-family: 'Noto Sans JP', sans-serif; }
   .type-chip.active { background: var(--holiday); border-color: var(--holiday); color: #fff; font-weight: 700; }
 
   /* STATUS BAR */
   .status-bar { margin: 0 20px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
   .status-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
-  .status-label { font-size: 12px; color: var(--text2); }
-  .status-val { font-size: 13px; font-weight: 500; }
+  .status-label { font-size: 14px; color: var(--text2); }
+  .status-val { font-size: 14px; font-weight: 600; }
   .status-val.set     { color: var(--success); }
   .status-val.ongoing { color: var(--info); }
   .status-val.empty   { color: var(--text3); }
@@ -66,11 +66,11 @@
   .break-section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .break-entries { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
   .break-entry { display: flex; align-items: center; gap: 6px; }
-  .break-entry-idx  { font-size: 10px; color: var(--text3); width: 34px; flex-shrink: 0; }
-  .break-entry-val  { flex: 1; font-size: 12px; font-weight: 500; color: var(--success); }
+  .break-entry-idx  { font-size: 13px; color: var(--text3); width: 34px; flex-shrink: 0; }
+  .break-entry-val  { flex: 1; font-size: 14px; font-weight: 600; color: var(--success); }
   .break-entry-val.ongoing { color: var(--info); }
-  .break-del-btn { font-size: 10px; color: var(--text3); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
-  .edit-time-btn { font-size: 10px; color: var(--accent); background: none; border: 1px solid rgba(249,115,22,0.4); border-radius: 4px; padding: 2px 8px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
+  .break-del-btn { font-size: 12px; color: var(--text2); background: none; border: 1px solid var(--border); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
+  .edit-time-btn { font-size: 12px; color: var(--accent); background: none; border: 1px solid rgba(251,146,60,0.5); border-radius: 4px; padding: 3px 8px; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; flex-shrink: 0; }
   .edit-time-btn:active { opacity: 0.7; }
   .status-row-last { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; }
 
@@ -95,11 +95,11 @@
   .modal-title { font-size: 16px; font-weight: 700; margin-bottom: 16px; text-align: center; }
   .modal-time-input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 32px; font-family: 'Bebas Neue', sans-serif; letter-spacing: 2px; padding: 12px 16px; text-align: center; }
   .modal-note { margin-top: 12px; }
-  .modal-note input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 14px; padding: 10px 14px; font-family: 'Noto Sans JP', sans-serif; }
+  .modal-note input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--text); font-size: 16px; padding: 10px 14px; font-family: 'Noto Sans JP', sans-serif; }
   .modal-actions { display: flex; gap: 10px; margin-top: 16px; }
   .modal-btn { flex: 1; padding: 14px; border-radius: var(--radius-sm); border: none; font-size: 15px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans JP', sans-serif; }
   .modal-btn.cancel  { background: var(--surface2); color: var(--text2); }
-  .modal-btn.confirm { background: var(--accent); color: #fff; }
+  .modal-btn.confirm { background: var(--accent); color: #000; font-weight: 700; }
 
   /* RECORDS */
   .period-selector { display: flex; align-items: center; gap: 10px; padding: 16px 20px 8px; }
@@ -108,17 +108,17 @@
 
   .record-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 0 20px 10px; padding: 14px 16px; }
   .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-  .record-date { font-size: 15px; font-weight: 700; }
+  .record-date { font-size: 16px; font-weight: 700; }
   .record-tags { display: flex; gap: 5px; flex-wrap: wrap; }
-  .tag { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 700; }
+  .tag { font-size: 12px; padding: 3px 8px; border-radius: 10px; font-weight: 700; }
   .tag.holiday  { background: rgba(244,63,94,0.2);   color: var(--holiday);  border: 1px solid rgba(244,63,94,0.3); }
   .tag.night    { background: rgba(129,140,248,0.2); color: var(--night);    border: 1px solid rgba(129,140,248,0.3); }
   .tag.overtime { background: rgba(250,204,21,0.15); color: var(--overtime); border: 1px solid rgba(250,204,21,0.3); }
-  .record-times { display: flex; gap: 16px; font-size: 12px; margin-bottom: 8px; }
-  .record-time-item .t-label { font-size: 10px; color: var(--text3); }
+  .record-times { display: flex; gap: 16px; font-size: 13px; margin-bottom: 8px; }
+  .record-time-item .t-label { font-size: 12px; color: var(--text2); }
   .record-time-item .t-val   { font-weight: 500; color: var(--text); }
   .record-breaks { margin-bottom: 8px; }
-  .record-breaks-label { font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .record-breaks-label { font-size: 12px; color: var(--text2); margin-bottom: 4px; }
   .break-chips { display: flex; flex-wrap: wrap; gap: 4px; }
   .break-chip { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: var(--info); border-radius: 10px; font-size: 11px; padding: 2px 8px; }
   .record-hours { display: flex; gap: 14px; border-top: 1px solid var(--border); padding-top: 8px; flex-wrap: wrap; }
@@ -195,32 +195,32 @@
 
 
   /* ── REPORT FORM ── */
-  .report-form { padding: 0 16px 16px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; width: 100%; }
+  .report-form { padding: 0 16px 20px; overflow-y: auto; overflow-x: hidden; box-sizing: border-box; width: 100%; }
   .rf-section { font-family: 'Bebas Neue', 'Arial Narrow', Arial, sans-serif;
-    font-size: 15px; letter-spacing: 1px; color: var(--accent);
-    padding: 14px 0 6px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-  .rf-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; min-width: 0; }
-  .rf-label { font-size: 12px; color: var(--text2); width: 80px; flex-shrink: 0;
+    font-size: 16px; letter-spacing: 1px; color: var(--accent);
+    padding: 16px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+  .rf-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; min-width: 0; }
+  .rf-label { font-size: 14px; color: var(--text2); width: 76px; flex-shrink: 0;
     padding-top: 10px; }
   .rf-input { flex: 1; min-width: 0; background: var(--surface2); border: 1px solid var(--border);
-    border-radius: var(--radius-sm); color: var(--text); font-size: 14px;
-    padding: 9px 12px; font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
+    border-radius: var(--radius-sm); color: var(--text); font-size: 16px;
+    padding: 10px 12px; font-family: 'Noto Sans JP', 'Hiragino Kaku Gothic ProN', sans-serif;
     box-sizing: border-box; width: 100%; }
   .rf-input:focus { outline: none; border-color: var(--accent); }
-  .rf-num { text-align: center; max-width: 100px; }
+  .rf-num { text-align: center; }
   .rf-textarea { min-height: 70px; resize: vertical; }
-  .rf-grid4 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
-  .rf-num-group { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-  .rf-num-group label { font-size: 11px; color: var(--text2); text-align: center; }
-  .rf-num-group input { width: 100%; text-align: center; box-sizing: border-box; }
+  .rf-grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+  .rf-num-group { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .rf-num-group label { font-size: 14px; font-weight: 600; color: var(--text2); text-align: center; }
+  .rf-num-group input { width: 100%; text-align: center; box-sizing: border-box; padding: 10px 4px; font-size: 18px; font-weight: 700; }
   .rf-toggle-group { display: flex; gap: 6px; flex-wrap: wrap; padding-top: 4px; max-width: 100%; }
   .rf-chip { background: var(--surface2); border: 1px solid var(--border);
     border-radius: 20px; color: var(--text2); font-size: 12px; padding: 5px 14px;
     cursor: pointer; font-family: 'Noto Sans JP', sans-serif; transition: all 0.15s; }
   .rf-chip.active { background: var(--accent); border-color: var(--accent);
-    color: #fff; font-weight: 500; }
+    color: #000; font-weight: 700; }
   .rf-select { appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; cursor: pointer; }
-  .rf-add-btn { background: var(--accent); border: none; color: #fff; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans JP', sans-serif; }
+  .rf-add-btn { background: var(--accent); border: none; color: #000; border-radius: var(--radius-sm); padding: 6px 12px; font-size: 14px; cursor: pointer; white-space: nowrap; font-family: 'Noto Sans JP', sans-serif; }
   .rf-add-btn:active { opacity: 0.8; }
 
   .rf-toggle-switch { display:flex; align-items:center; gap:10px; cursor:pointer; user-select:none; }
@@ -247,7 +247,7 @@
   .rf-del-btn:active { color: #ef4444; }
   .rf-fuel-col { display:flex; flex-direction:column; gap:8px; }
   .rf-fuel-group { display:flex; align-items:center; gap:10px; }
-  .rf-fuel-group label { font-size:12px; color:var(--text2); width:110px; flex-shrink:0; }
+  .rf-fuel-group label { font-size:16px; color:var(--text2); width:110px; flex-shrink:0; }
   .rf-fuel-group input { flex:1; text-align:right; }
     padding: 8px; background: rgba(34,197,94,0.1); border-radius: 8px; }
   /* LOADING OVERLAY */
@@ -333,7 +333,7 @@
         <option value="">── 選択してください ──</option>
       </select>
       <div style="display:flex;gap:6px;">
-        <input class="rf-input" type="text" id="alcAModalCheckerNew" placeholder="新しい確認者名" style="flex:1;font-size:12px;padding:6px 10px;">
+        <input class="rf-input" type="text" id="alcAModalCheckerNew" placeholder="新しい確認者名" style="flex:1;font-size:16px;padding:6px 10px;">
         <button class="rf-add-btn" onclick="alcAModalAddChecker()">＋</button>
       </div>
     </div>
@@ -354,8 +354,8 @@
     <div class="modal-title" id="modalTitle">時刻を確認・修正</div>
     <input type="time" class="modal-time-input" id="modalTimeInput">
     <div id="modalMileageWrap" style="margin-top:12px;display:none;">
-      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">🚗 走行距離（km）<span style="color:#ef4444;margin-left:4px;font-weight:700;">必須</span></div>
-      <input type="number" id="modalMileageInput" placeholder="例：12345" min="0" style="width:100%;background:var(--surface2);border:2px solid var(--accent);border-radius:var(--radius-sm);color:var(--text);font-size:22px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;padding:10px 14px;text-align:center;">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:5px;">🚗 オドメーター（km）<span style="color:#ef4444;margin-left:4px;font-weight:700;">必須</span></div>
+      <input type="text" inputmode="numeric" pattern="[0-9]*" id="modalMileageInput" placeholder="例：12345" style="width:100%;background:var(--surface2);border:2px solid var(--accent);border-radius:var(--radius-sm);color:var(--text);font-size:22px;font-family:'Bebas Neue',sans-serif;letter-spacing:1px;padding:10px 14px;text-align:center;">
     </div>
     <div class="modal-note" id="modalNoteWrap">
       <input type="text" id="modalNoteInput" placeholder="現在地（任意）例：△△SA" autocomplete="off">
@@ -418,6 +418,17 @@
     </button>
   </div>
 
+  <!-- 給油情報 -->
+  <div style="padding:0 20px 20px;">
+    <div class="rf-section" style="margin-top:16px;">⛽ 給油情報</div>
+    <div style="margin-bottom:4px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+        <span style="font-size:13px;color:var(--text2);">給油記録</span>
+        <button class="rf-add-btn" onclick="addFuel()">＋ 追加</button>
+      </div>
+      <div id="rf-fuels-list"></div>
+    </div>
+  </div>
 
 </div>
 
@@ -476,11 +487,7 @@
     <input type="text" id="newDriverName" placeholder="新しいドライバー名を入力" maxlength="10">
     <button onclick="addDriver()">＋ ドライバーを追加</button>
   </div>
-  <div style="padding: 8px 20px 20px; text-align: center;">
-    <button onclick="resetAllData()" style="background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;font-family:'Noto Sans JP',sans-serif;text-decoration:underline;">
-      全データをリセット
-    </button>
-  </div>
+
 </div>
 
 
@@ -522,14 +529,11 @@
     <!-- 積込数量 -->
     <div class="rf-section">積込数量</div>
     <div class="rf-grid4">
-      <div class="rf-num-group"><label>組立</label><input class="rf-input rf-num" type="number" id="rf-kumitate" placeholder="0" min="0" oninput="reportFieldChange()"></div>
-      <div class="rf-num-group"><label>バラ</label><input class="rf-input rf-num" type="number" id="rf-bara" placeholder="0" min="0" oninput="reportFieldChange()"></div>
-      <div class="rf-num-group"><label>ワンタッチ</label><input class="rf-input rf-num" type="number" id="rf-onetouch" placeholder="0" min="0" oninput="reportFieldChange()"></div>
-      <div class="rf-num-group"><label>小物</label><input class="rf-input rf-num" type="number" id="rf-kobutsu" placeholder="0" min="0" oninput="reportFieldChange()"></div>
-    </div>
-    <div class="rf-row">
-      <label class="rf-label">その他</label>
-      <input class="rf-input rf-num" type="number" id="rf-other" placeholder="0" min="0" oninput="reportFieldChange()">
+      <div class="rf-num-group"><label>組立</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-kumitate" placeholder="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>バラ</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-bara" placeholder="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>ワンタッチ</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-onetouch" placeholder="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>小物</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-kobutsu" placeholder="0" oninput="reportFieldChange()"></div>
+      <div class="rf-num-group"><label>その他</label><input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-other" placeholder="0" oninput="reportFieldChange()"></div>
     </div>
 
     <!-- 酒気帯び確認（運転前） -->
@@ -564,7 +568,7 @@
           <option value="">── 選択してください ──</option>
         </select>
         <div style="display:flex;gap:6px;align-items:center;">
-          <input class="rf-input" type="text" id="rf-alcBCheckerNew" placeholder="新しい確認者名を追加" style="flex:1;font-size:12px;padding:6px 10px;">
+          <input class="rf-input" type="text" id="rf-alcBCheckerNew" placeholder="新しい確認者名を追加" style="flex:1;font-size:16px;padding:6px 10px;">
           <button class="rf-add-btn" onclick="addChecker('B')">＋追加</button>
         </div>
       </div>
@@ -575,16 +579,6 @@
       <input type="hidden" id="rf-alcBDate">
     </div>
 
-
-    <!-- 給油情報 -->
-    <div class="rf-section">⛽ 給油情報</div>
-    <div style="margin-bottom:4px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-        <span style="font-size:12px;color:var(--text2);">給油記録</span>
-        <button class="rf-add-btn" onclick="addFuel()">＋ 追加</button>
-      </div>
-      <div id="rf-fuels-list"></div>
-    </div>
 
     <!-- 出張・収支 -->
     <div class="rf-section">📋 出張報告書</div>
@@ -600,7 +594,7 @@
     </div>
     <div class="rf-row">
       <label class="rf-label">手当（円）</label>
-      <input class="rf-input rf-num" type="number" id="rf-allowance" placeholder="0" min="0" oninput="reportFieldChange()">
+      <input class="rf-input rf-num" type="text" inputmode="numeric" pattern="[0-9]*" id="rf-allowance" placeholder="0" min="0" oninput="reportFieldChange()">
     </div>
     <div style="margin-bottom:10px;margin-top:6px;">
       <div style="font-size:12px;color:var(--text2);margin-bottom:6px;">報告事項（訪問先ごと）</div>
@@ -645,7 +639,7 @@
         <button class="rec-edit-type-btn" id="recEditTypeNormal"  onclick="setRecEditType('normal')">通常</button>
         <button class="rec-edit-type-btn" id="recEditTypeHoliday" onclick="setRecEditType('holiday')">休日出勤</button>
       </div>
-      <div class="rec-edit-section">打刻時刻・走行距離</div>
+      <div class="rec-edit-section">打刻時刻・オドメーター</div>
       <div class="rec-edit-row">
         <div class="rec-edit-label">🟢 始業時刻</div>
         <input type="time" class="rec-edit-input" id="recEditStart">
@@ -1041,6 +1035,7 @@ function updatePunchUI() {
   document.getElementById('btn-end').disabled        = !todayState.start || open || !!todayState.end;
   document.getElementById('typeNormal').classList.toggle('active',  todayState.type !== 'holiday');
   document.getElementById('typeHoliday').classList.toggle('active', todayState.type === 'holiday');
+  renderFuels();
 }
 
 function deleteBreak(idx) {
@@ -1170,7 +1165,7 @@ function confirmPunch() {
   // 始業・休憩開始・終業は走行距離必須
   const needsMileage = ['start','breakStart','end'].includes(pendingPunchType);
   if (needsMileage && !mileage) {
-    showToast('走行距離を入力してください', true);
+    showToast('オドメーターを入力してください', true);
     document.getElementById('modalMileageInput').focus();
     return;
   }
@@ -1459,7 +1454,7 @@ async function renderRecords() {
       <div class="record-times">
         <div class="record-time-item"><div class="t-label">始業</div><div class="t-val">${rec.start||'—'}</div>${rec.startMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.startMileage).toLocaleString()}km</div>`:''}</div>
         <div class="record-time-item"><div class="t-label">終業</div><div class="t-val">${rec.end||'—'}</div>${rec.endMileage?`<div style="font-size:10px;color:var(--info)">${Number(rec.endMileage).toLocaleString()}km</div>`:''}</div>
-        ${rec.startMileage&&rec.endMileage?`<div class="record-time-item"><div class="t-label">走行距離</div><div class="t-val" style="color:var(--info)">${(Number(rec.endMileage)-Number(rec.startMileage)).toLocaleString()}km</div></div>`:''}
+        ${rec.startMileage&&rec.endMileage?`<div class="record-time-item"><div class="t-label">オドメーター</div><div class="t-val" style="color:var(--info)">${(Number(rec.endMileage)-Number(rec.startMileage)).toLocaleString()}km</div></div>`:''}
       </div>
       ${breaksHtml}
       ${calc ? `<div class="record-hours">
@@ -2018,7 +2013,10 @@ function renderFuels() {
   list.innerHTML = '';
 
   if (fuels.length === 0) {
-    list.innerHTML = '<div style="text-align:center;color:var(--text3);font-size:12px;padding:12px;">給油記録なし。「＋ 追加」で入力</div>';
+    todayState.fuelEntries = [{ shop:'', fuel:'', fuelRegular:'', adblue:'' }];
+    saveTodayState();
+    renderFuels();
+    return;
   } else {
     fuels.forEach(function(f, i) {
       const card = document.createElement('div');
@@ -2032,13 +2030,13 @@ function renderFuels() {
           'data-fi="' + i + '" data-ff="shop" oninput="handleFuelInput(this)">' +
         '<div class="rf-fuel-col">' +
           '<div class="rf-fuel-group"><label>軽油（ℓ）</label>' +
-            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.fuel||'') + '" ' +
+            '<input class="rf-input" type="text" inputmode="decimal" placeholder="0" value="' + (f.fuel||'') + '" ' +
               'data-fi="' + i + '" data-ff="fuel" oninput="handleFuelInput(this)"></div>' +
           '<div class="rf-fuel-group"><label>レギュラー（ℓ）</label>' +
-            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.fuelRegular||'') + '" ' +
+            '<input class="rf-input" type="text" inputmode="decimal" placeholder="0" value="' + (f.fuelRegular||'') + '" ' +
               'data-fi="' + i + '" data-ff="fuelRegular" oninput="handleFuelInput(this)"></div>' +
           '<div class="rf-fuel-group"><label>アドブルー（ℓ）</label>' +
-            '<input class="rf-input" type="number" min="0" step="0.1" placeholder="0" value="' + (f.adblue||'') + '" ' +
+            '<input class="rf-input" type="text" inputmode="decimal" placeholder="0" value="' + (f.adblue||'') + '" ' +
               'data-fi="' + i + '" data-ff="adblue" oninput="handleFuelInput(this)"></div>' +
         '</div>';
       list.appendChild(card);
