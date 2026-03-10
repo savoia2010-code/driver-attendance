@@ -2133,6 +2133,9 @@ function renderReportForm() {
       if (input) input.value = val;
     }
   });
+
+  // 宿泊2日目モードを復元（_waitingLodgingDay2がtrueなら非表示モード）
+  setReportDay2Mode(!!_waitingLodgingDay2);
 }
 
 function setRfChip(field, value) {
